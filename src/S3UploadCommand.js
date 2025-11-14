@@ -1,6 +1,7 @@
 import { PutObjectCommand } from '@aws-sdk/client-s3';
-import { showWarning } from './utils';
+import { showWarning, showSuccess } from './utils';
 import { Command } from 'ckeditor5';
+
 
 export default class S3UploadCommand extends Command {
 
@@ -34,7 +35,7 @@ export default class S3UploadCommand extends Command {
     }
 
     async uploadFileToS3(file) {
-        const bucketName = 'pranay-poc-bucket'; // Replace with your bucket name
+        const bucketName = process.env.R2_BUCKET_NAME || process.env.S3_BUCKET_NAME || 'pranay-poc-bucket';
         const command = new PutObjectCommand({
             Bucket: bucketName,
             Key: file.name,
