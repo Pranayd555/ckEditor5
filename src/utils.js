@@ -6,6 +6,7 @@ export function showWarning(
     doLocalizeMessage
 ) {
     const notification = editor.plugins.get('Notification');
+    console.log('noification', notification)
     const t = editor.locale.t;
 
     if (notification) {

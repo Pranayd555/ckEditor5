@@ -4,6 +4,7 @@ import iconUpload from './assets/icons/upload.svg';
 import iconS3 from './assets/icons/file-manager.svg'; // Replace with your own icon
 import S3BrowserCommand from './S3BrowseCommand';
 
+
 export default class AmazonS3Plugin extends Plugin {
 
     static get pluginName() {
@@ -17,11 +18,22 @@ export default class AmazonS3Plugin extends Plugin {
     init() {
         // Initialize S3 client
         console.log('FileManagerPlugin is initialized!');
+        // connect aws s3
+        // this.s3Client = new S3Client({
+        //     region: process.env.AWS_REGION || 'eu-north-1',
+        //     credentials:{
+        //         accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+        //         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || ''
+        //     },
+        // });
+        // connect cloudflare R2
         this.s3Client = new S3Client({
-            region: 'eu-north-1',
+            region: "auto",
+            endpoint: process.env.R2_API || 'https://<ACCOUNT_ID>.r2.cloudflarestorage.com',
+            signatureVersion: 'v4',
             credentials:{
-                accessKeyId: '',
-                secretAccessKey: ''
+                accessKeyId: process.env.R2_ACCESS_KEY_ID || '',
+                secretAccessKey: process.env.R2_SECRECT_ACCESS_KEY || ''
             },
         });
 
