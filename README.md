@@ -10,7 +10,7 @@ This project integrates a custom S3 File Manager plugin into CKEditor 5, allowin
 1.  **Clone the repository:**
 
     ```bash
-    git clone <your-repository-url>
+    git clone https://github.com/Pranayd555/ckEditor5.git
     cd ckEditor5
     ```
 
