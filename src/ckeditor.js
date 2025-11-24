@@ -21,10 +21,10 @@ import {
 	Table,
 	TableToolbar,
 	TextTransformation,
-    Notification,
-    ImageInsert,
-    ImageInsertViaUrl,
-    AccessibilityHelp,
+	Notification,
+	ImageInsert,
+	ImageInsertViaUrl,
+	AccessibilityHelp,
 	Alignment,
 	AutoImage,
 	AutoLink,
@@ -74,14 +74,14 @@ import {
 	Underline,
 	Undo
 } from 'ckeditor5';
-// import 'ckeditor5/ckeditor5.css';
+import './styles.css';
 import AmazonS3Plugin from './fileManagerPlugin';
 
 export default class CKEditor5WithFileManager {
-static create(selector, config) {
-    return ClassicEditor.create( selector, {
-        plugins: [
-                AmazonS3Plugin,
+	static create(selector, config) {
+		return ClassicEditor.create(selector, {
+			plugins: [
+				AmazonS3Plugin,
 				Alignment,
 				Autoformat,
 				AutoImage,
@@ -152,11 +152,11 @@ static create(selector, config) {
 				TodoList,
 				Underline,
 				Undo,
-                Notification
-        ],
-        toolbar: {
-            items: [
-                'undo',
+				Notification
+			],
+			toolbar: {
+				items: [
+					'undo',
 					'redo',
 					'|',
 					'sourceEditing',
@@ -201,46 +201,46 @@ static create(selector, config) {
 					'outdent',
 					'indent',
 					'|',
-                    's3Browse',
+					's3Browse',
 
-            ],
-            shouldNotGroupWhenFull: true
-        },
-        image: {
-            toolbar: [
-                'imageStyle:inline',
-                'imageStyle:block',
-                'imageStyle:side',
-                '|',
-                'toggleImageCaption',
-                'imageTextAlternative'
-            ]
-        },
-        table: {
-            contentToolbar: [
-                'tableColumn',
-                'tableRow',
-                'mergeTableCells'
-            ]
-        },
-		link: {
-            defaultProtocol: 'https://'
-        },
-		htmlSupport: {
-            allow: [
-                // Allow specific HTML elements
-               {name: 'audio'},
-			   {name: 'source'},
-			   {name: 'a'}
-            ]
-        },
-        // This value must be kept in sync with the language defined in webpack.config.js.
-        language: 'en',
-        ...config
-    } ).then( editor => {
-		console.log(editor.commands)
-	})
-}
+				],
+				shouldNotGroupWhenFull: true
+			},
+			image: {
+				toolbar: [
+					'imageStyle:inline',
+					'imageStyle:block',
+					'imageStyle:side',
+					'|',
+					'toggleImageCaption',
+					'imageTextAlternative'
+				]
+			},
+			table: {
+				contentToolbar: [
+					'tableColumn',
+					'tableRow',
+					'mergeTableCells'
+				]
+			},
+			link: {
+				defaultProtocol: 'https://'
+			},
+			htmlSupport: {
+				allow: [
+					// Allow specific HTML elements
+					{ name: 'audio' },
+					{ name: 'source' },
+					{ name: 'a' }
+				]
+			},
+			// This value must be kept in sync with the language defined in webpack.config.js.
+			language: 'en',
+			...config
+		}).then(editor => {
+			console.log(editor.commands)
+		})
+	}
 
 }
 

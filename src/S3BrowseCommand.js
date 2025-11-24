@@ -63,20 +63,20 @@ export default class S3BrowserCommand extends Command {
 
   showLoader() {
     const dialogHTML = `
-    <div class="s3-dialog" aria-busy="false" role="dialog">
-                <div class="s3-dialog-content loader">
-            <div id="fileList">
-              <div class="loader-container">
-                <div class="spinner"></div>
-                <span class="loading-text">Loading files...</span>
+    <div class="fixed inset-0 flex items-center justify-center z-[1000] bg-gray-900/55 backdrop-blur-sm" aria-busy="false" role="dialog">
+                <div class="relative bg-white w-[min(1000px,92vw)] max-h-[85vh] min-h-[60vh] rounded-xl shadow-2xl border border-gray-200 overflow-hidden flex items-center justify-center">
+            <div id="fileList" class="w-full h-full flex items-center justify-center">
+              <div class="flex flex-col items-center justify-center py-10 gap-2.5">
+                <div class="w-10 h-10 border-4 border-black/15 border-t-blue-500 rounded-full animate-spin"></div>
+                <span class="text-sm font-medium text-gray-700/85">Loading files...</span>
               </div>
             </div>
             </div>
             </div>
                     `
-                    this.closeDialog();              
-                    this.addDialogStyles();
-                    document.body.insertAdjacentHTML("beforeend", dialogHTML);
+    this.closeDialog();
+    // this.addDialogStyles(); // Removed custom styles
+    document.body.insertAdjacentHTML("beforeend", dialogHTML);
   }
 
   async getFolderNames(bucketName) {
@@ -130,13 +130,13 @@ export default class S3BrowserCommand extends Command {
       folderListHTML = folderList
         .map(
           (folder, i) => `
-                <li class="folder-item ${folder === currentFolder ? 'selected' : ''}">
-                    <div class="folder-info" onclick="updateContent('${folder}', ${i})">
-                        <div class="icon">${folderIcon}</div>
-                        <span class="folderName">${folder}</span>
+                <li class="js-folder-item p-3 my-2 rounded-lg bg-gray-50 border border-gray-200 transition flex items-center justify-between hover:bg-blue-50 hover:border-blue-300 hover:-translate-y-px hover:shadow-md cursor-pointer ${folder === currentFolder ? 'bg-orange-100/30 scale-102' : ''}">
+                    <div class="flex items-center gap-2.5 cursor-pointer" onclick="updateContent('${folder}', ${i})">
+                        <div class="w-10 h-[22px] inline-flex shrink-0 items-center justify-center text-gray-500">${folderIcon}</div>
+                        <span class="text-base font-bold text-gray-700">${folder}</span>
                     </div>
-                    <div class="folder-actions">
-                        <button class="delete-btn" onclick="event.stopPropagation(); deleteFolder(event, '${folder}')">Delete</button>
+                    <div class="flex justify-end">
+                        <button class="px-3 py-2 bg-red-500 text-white border-none rounded-lg cursor-pointer ml-2.5 font-semibold transition hover:bg-red-600 hover:shadow-lg hover:scale-102" onclick="event.stopPropagation(); deleteFolder(event, '${folder}')">Delete</button>
                     </div>
                 </li>
             `
@@ -144,73 +144,73 @@ export default class S3BrowserCommand extends Command {
         .join("");
     } else {
       folderListHTML = `
-            <li>
-                <span>No folders found</span>
+            <li class="p-3 my-2 rounded-lg bg-gray-50 border border-gray-200">
+                <span class="text-gray-500">No folders found</span>
             </li>
         `;
     }
 
     if (files.length) {
       fileListHTML = `
-                <div class="header-row">
-                <h3>${currentFolder ? `${currentFolder} - Files` : `All Files`}</h3>
-                <button onclick="uploadFilesToS3()" id="uploadButton">Upload</button>
+                <div class="flex justify-between items-center mb-2.5">
+                <h3 class="mb-3 text-base font-semibold text-gray-900">${currentFolder ? `${currentFolder} - Files` : `All Files`}</h3>
+                <button class="px-3 py-2 bg-blue-600 text-white border-none rounded-lg cursor-pointer ml-2.5 font-semibold transition hover:bg-blue-700 hover:shadow-lg hover:scale-102" onclick="uploadFilesToS3()" id="uploadButton">Upload</button>
                 </div>
-                    <ul id="fileList">
+                    <ul id="fileList" class="list-none p-0 m-0">
                         ${files
-                          .map(
-                            (file) => `
-                            <li class="file-item">
-                                <div class="file-info" data-file="${file.key}" onclick="selectFile('${
-                                      file.Key
-                                    }')">
+          .map(
+            (file) => `
+                            <li class="p-3 my-2 rounded-lg bg-gray-50 border border-gray-200 transition flex items-center justify-between hover:bg-blue-50 hover:border-blue-300 hover:-translate-y-px hover:shadow-md cursor-pointer">
+                                <div class="flex items-center gap-2.5 flex-1" data-file="${file.key}" onclick="selectFile('${file.Key
+              }')">
                                     ${getFileIcon(file)}
-                                    <span class="fileName">${
-                                      file.fileName
-                                    }</span>
+                                    <span class="font-semibold ml-2.5 text-gray-800 break-words whitespace-normal overflow-wrap-anywhere">${file.fileName
+              }</span>
                                 </div>
-                                <div class="file-actions">
-                                    <button class="delete-btn" onclick="deleteFile(event, '${
-                                      file.Key
-                                    }')">Delete</button>
+                                <div class="flex gap-2">
+                                    <button class="px-3 py-2 bg-red-500 text-white border-none rounded-lg cursor-pointer ml-2.5 font-semibold transition hover:bg-red-600 hover:shadow-lg hover:scale-102" onclick="deleteFile(event, '${file.Key
+              }')">Delete</button>
                                 </div>
                             </li>
                         `
-                          )
-                          .join("")}
+          )
+          .join("")}
                     </ul>
         `;
     } else {
       fileListHTML = ` 
-            <div class="header-row">
-            <h3>${currentFolder ? `${currentFolder} - Files` : `All Files`}</h3>
-            <button onclick="uploadFilesToS3()" id="uploadButton">Upload</button>
+            <div class="flex justify-between items-center mb-2.5">
+            <h3 class="mb-3 text-base font-semibold text-gray-900">${currentFolder ? `${currentFolder} - Files` : `All Files`}</h3>
+            <button class="px-3 py-2 bg-blue-600 text-white border-none rounded-lg cursor-pointer ml-2.5 font-semibold transition hover:bg-blue-700 hover:shadow-lg hover:scale-102" onclick="uploadFilesToS3()" id="uploadButton">Upload</button>
             </div>
-            <ul id="fileList">
-                <li>
-                    <span>No files found</span>
+            <ul id="fileList" class="list-none p-0 m-0">
+                <li class="p-3 my-2 rounded-lg bg-gray-50 border border-gray-200">
+                    <span class="text-gray-500">No files found</span>
                 </li>
             </ul>`;
     }
 
     const dialogHTML = `
-            <div class="s3-dialog" aria-busy="false" role="dialog">
-                <div class="s3-dialog-content">
-                    <div class="s3-loader"><div class="s3-spinner"></div><div class="s3-loading-text">Loading</div></div>
-                    <span class="s3-dialog-close" onclick="closeDialog()">&times;</span>
-                    <h2>File Manager</h2>
-                    <div class="s3-dialog-body">
-                        <div class="s3-folder-section">
-                            <input type="text" id="folderNameInput" placeholder="Enter folder name" />
-                            <div class="btn-wrap">
-                            <button id="addFolderButton" style="margin-top: 5px;" onclick="addFolder()">Add Folder</button>
+            <div class="fixed inset-0 flex items-center justify-center z-[1000] bg-gray-900/55 backdrop-blur-sm" aria-busy="false" role="dialog">
+                <div class="relative bg-white w-[min(1000px,92vw)] max-h-[85vh] min-h-[60vh] rounded-xl shadow-2xl border border-gray-200 overflow-hidden">
+                    <div class="absolute inset-0 flex items-center justify-center gap-3 bg-white/65 opacity-0 pointer-events-none transition-opacity duration-200 group-aria-[busy=true]:opacity-100 group-aria-[busy=true]:pointer-events-auto z-50">
+                        <div class="w-7 h-7 rounded-full border-[3px] border-blue-300 border-t-blue-600 animate-spin"></div>
+                        <div class="font-semibold text-gray-900">Loading</div>
+                    </div>
+                    <span class="absolute right-3.5 top-2.5 cursor-pointer text-xl text-gray-500 hover:text-red-500 hover:scale-110 transition-transform z-10" onclick="closeDialog()">&times;</span>
+                    <h2 class="text-xl font-bold pt-4 px-5 text-gray-900">File Manager</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-[300px_1fr] gap-4 p-5">
+                        <div class="bg-white border border-gray-200 rounded-xl p-4 overflow-y-auto max-h-[400px]">
+                            <input type="text" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-400/35" id="folderNameInput" placeholder="Enter folder name" />
+                            <div class="flex justify-end items-center mt-1.5">
+                            <button class="px-3 py-2 bg-blue-600 text-white border-none rounded-lg cursor-pointer ml-2.5 font-semibold transition hover:bg-blue-700 hover:shadow-lg hover:scale-102 mt-[5px]" id="addFolderButton" onclick="addFolder()">Add Folder</button>
                             </div>
-                            <h3>Folders</h3>
-                            <ul id="folderList">
+                            <h3 class="mb-3 text-base font-semibold text-gray-900">Folders</h3>
+                            <ul id="folderList" class="list-none p-0 m-0">
                                 ${folderListHTML}
                             </ul>
                         </div>
-                        <div class="s3-file-section">
+                        <div class="s3-file-section bg-white border border-gray-200 rounded-xl p-4 overflow-y-auto max-h-[400px]">
                                 ${fileListHTML}
                         </div>
                     </div>
@@ -219,256 +219,70 @@ export default class S3BrowserCommand extends Command {
 
     this.closeDialog();
     document.body.insertAdjacentHTML("beforeend", dialogHTML);
-    // this.addDialogStyles();
+    // this.addDialogStyles(); // Removed
   }
 
-  addDialogStyles() {
-    const flmngrStyles = `
-            .s3-dialog {
-                position: fixed;
-                inset: 0;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                z-index: 1000;
-                background-color: rgba(17, 24, 39, 0.55);
-                backdrop-filter: saturate(180%) blur(6px);
-            }
+  // addDialogStyles removed
 
-            .s3-dialog-content {
-                position: relative;
-                background-color: #ffffff;
-                width: min(1000px, 92vw);
-                max-height: 85vh;
-                min-height: 60vh;
-                border-radius: 12px;
-                box-shadow: 0 20px 40px rgba(2, 6, 23, 0.18);
-                border: 1px solid #e5e7eb;
-                overflow: hidden;
-            }
-
-            .s3-dialog-close {
-                position: absolute;
-                right: 14px;
-                top: 10px;
-                cursor: pointer;
-                font-size: 22px;
-                color: #6b7280;
-            }
-
-            .s3-dialog-close:hover { color: #ef4444; scale: 1.1 }
-
-            .s3-dialog-body {
-                display: grid;
-                grid-template-columns: 300px 1fr;
-                gap: 16px;
-                padding: 20px;
-            }
-
-            .s3-folder-section, .s3-file-section {
-                background-color: #ffffff;
-                border: 1px solid #e5e7eb;
-                border-radius: 12px;
-                padding: 16px;
-                overflow-y: auto;
-                max-height: 400px;
-            }
-
-            .header-row {
-            display: flex;
-            justify-content: space-between; /* h3 left, button right */
-            align-items: center;            /* vertically center */
-            margin-bottom: 10px;
-            }
-
-
-            h2 { font-size: 20px; font-weight: 700; padding: 16px 20px 0; }
-            h3 { margin-bottom: 12px; font-size: 16px; font-weight: 600; color: #111827; }
-
-            ul { list-style: none; padding: 0; margin: 0; }
-
-            li {
-                padding: 12px;
-                margin: 8px 0;
-                border-radius: 10px;
-                background-color: #f9fafb;
-                border: 1px solid #e5e7eb;
-                transition: background-color .2s ease, transform .2s ease, border-color .2s ease;
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-            }
-
-            li:hover { background-color: #eff6ff; border-color: #93c5fd; transform: translateY(-1px); box-shadow: 0px 10px 5px rgba(0, 0, 0, 0.3); scale: 1.02}
-
-            input[type="text"] {
-                padding: 10px 12px;
-                border: 1px solid #d1d5db;
-                border-radius: 10px;
-                width: 100%;
-                outline: none;
-                transition: border-color .2s ease, box-shadow .2s ease;
-            }
-            input[type="text"]:focus { border-color: #60a5fa; box-shadow: 0 0 0 3px rgba(96,165,250,0.35); }
-
-            button {
-                padding: 8px 12px;
-                background-color: #2563eb;
-                color: #ffffff;
-                border: none;
-                border-radius: 10px;
-                cursor: pointer;
-                margin-left: 10px;
-                font-weight: 600;
-                transition: background-color .2s ease, box-shadow .2s ease, transform .1s ease;
-            }
-            button:hover { background-color: #1d4ed8; box-shadow: 0 8px 16px rgba(29,78,216,0.2); scale: 1.02 }
-            .btn-wrap { display: flex;
-            justify-content: flex-end;
-            align-items: center;}
-            .select-btn { background-color: #10b981; }
-            .select-btn:hover { background-color: #0ea5e9; }
-            .delete-btn { background-color: #ef4444; }
-            .delete-btn:hover { background-color: #eb2f2fff; }
-
-            .folder-item { display: flex; gap: 12px; align-items: center; }
-            .folder-item.selected { background: #e9967a54; scale: 1.02 }
-            .folder-info { display: flex; align-items: center; gap: 10px; cursor: pointer; }
-            .icon { width: 40px; height: 22px; display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; }
-            .fileName { font-weight: 600;
-            margin-left: 10px;
-            color: #1f2937;
-            white-space: normal;
-            white-space: normal;
-            overflow-wrap: anywhere;
-            word-break: break-word; }
-            .folderName { font-size: 16px; font-weight: 700; color: #374151; }
-            .folder-actions { display: flex; justify-content: flex-end; }
-
-            .file-item { align-items: center; cursor: pointer; }
-            .file-info { display: flex; align-items: center; gap: 10px; flex: 1; }
-            .file-image { max-width: clamp(160px, 35vw, 260px); max-height: 200px; border-radius: 8px; }
-            .file-actions { display: flex; gap: 8px; }
-
-            .s3-loader {
-                position: absolute;
-                inset: 0;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                gap: 12px;
-                background: rgba(255,255,255,0.65);
-                opacity: 0;
-                pointer-events: none;
-                transition: opacity .2s ease;
-            }
-            .s3-dialog[aria-busy="true"] .s3-loader { opacity: 1; pointer-events: auto; }
-            .s3-spinner { width: 28px; height: 28px; border-radius: 50%; border: 3px solid #93c5fd; border-top-color: #2563eb; animation: s3spin 1s linear infinite; }
-            .s3-loading-text { font-weight: 600; color: #111827; }
-            @keyframes s3spin { to { transform: rotate(360deg); } }
-
-            /* Loader wrapper */
-              .loader-container {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                padding: 40px 0;
-                gap: 10px;
-              }
-
-              .loader {
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                }
-
-              /* Modern smooth spinner */
-              .spinner {
-                width: 40px;
-                height: 40px;
-                border: 4px solid rgba(0, 0, 0, 0.15);
-                border-top-color: #4a90e2; /* primary color */
-                border-radius: 50%;
-                animation: spin 0.9s linear infinite;
-              }
-
-              /* Spinner animation */
-              @keyframes spin {
-                to {
-                  transform: rotate(360deg);
-                }
-              }
-
-              /* Text under loader */
-              .loading-text {
-                font-size: 14px;
-                font-weight: 500;
-                color: #444;
-                opacity: 0.85;
-              }
-
-            @media (max-width: 768px) {
-                .s3-dialog-body { grid-template-columns: 1fr; }
-            }
-        `;
-    const styleSheet = document.createElement("style");
-    styleSheet.innerText = flmngrStyles;
-    document.head.appendChild(styleSheet);
-  }
 
   async updateContent(folderName, index = null) {
-    const dlg = document.querySelector(".s3-dialog");
+    const dlg = document.querySelector('[role="dialog"]'); // Updated selector
     if (dlg) dlg.setAttribute("aria-busy", "true");
     const contents = await this.getFolderContents(bucketName, folderName);
     const fileListElement = document.querySelector(".s3-file-section");
     fileListElement.innerHTML = "";
-    if(index !== null) {
-    const folderListElement = document.getElementsByClassName("folder-item");
-    const selectedFolder = document.getElementsByClassName("selected");
-    selectedFolder[0].classList.remove("selected");
-    folderListElement[index].classList.add("selected");
-  }
+    if (index !== null) {
+      const folderListElement = document.getElementsByClassName("js-folder-item");
+      // Remove active classes from all items (or specifically the previously selected one if we tracked it, but iterating is fine for small lists)
+      // Actually, we can just find the one with the active class.
+      // But let's just loop or find the one with the specific class.
+      for (let item of folderListElement) {
+        if (item.classList.contains('bg-orange-100/30')) {
+          item.classList.remove('bg-orange-100/30', 'scale-102');
+        }
+      }
+      // Add active classes to the new one
+      if (folderListElement[index]) {
+        folderListElement[index].classList.add('bg-orange-100/30', 'scale-102');
+      }
+    }
     let fileListHTML = ``;
     if (contents.length) {
       fileListHTML = `
-      <div class="header-row">
-        <h3>${currentFolder ? `${currentFolder} - Files` : `All Files`}</h3>
-        <button onclick="uploadFilesToS3()" id="uploadButton">Upload</button>
+      <div class="flex justify-between items-center mb-2.5">
+        <h3 class="mb-3 text-base font-semibold text-gray-900">${currentFolder ? `${currentFolder} - Files` : `All Files`}</h3>
+        <button class="px-3 py-2 bg-blue-600 text-white border-none rounded-lg cursor-pointer ml-2.5 font-semibold transition hover:bg-blue-700 hover:shadow-lg hover:scale-102" onclick="uploadFilesToS3()" id="uploadButton">Upload</button>
         </div>
-                    <ul id="fileList">
+                    <ul id="fileList" class="list-none p-0 m-0">
                         ${contents
-                          .map(
-                            (file) => `
-                            <li class="file-item" data-file="${file.Key}" onclick="selectFile('${
-                                      file.Key
-                                    }')">
-                                <div class="file-info">
+          .map(
+            (file) => `
+                            <li class="p-3 my-2 rounded-lg bg-gray-50 border border-gray-200 transition flex items-center justify-between hover:bg-blue-50 hover:border-blue-300 hover:-translate-y-px hover:shadow-md cursor-pointer" data-file="${file.Key}" onclick="selectFile('${file.Key
+              }')">
+                                <div class="flex items-center gap-2.5 flex-1">
                                     ${getFileIcon(file)}
-                                    <span class="fileName">${
-                                      file.fileName
-                                    }</span>
+                                    <span class="font-semibold ml-2.5 text-gray-800 break-words whitespace-normal overflow-wrap-anywhere">${file.fileName
+              }</span>
                                 </div>
-                                <div class="file-actions">
-                                    <button class="delete-btn" onclick="deleteFile(event, '${
-                                      file.Key
-                                    }')">Delete</button>
+                                <div class="flex gap-2">
+                                    <button class="px-3 py-2 bg-red-500 text-white border-none rounded-lg cursor-pointer ml-2.5 font-semibold transition hover:bg-red-600 hover:shadow-lg hover:scale-102" onclick="deleteFile(event, '${file.Key
+              }')">Delete</button>
                                 </div>
                             </li>
                         `
-                          )
-                          .join("")}
+          )
+          .join("")}
                     </ul>
         `;
     } else {
       fileListHTML = `
-      <div class="header-row">
-        <h3>${currentFolder ? `${currentFolder} - Files` : `All Files`}</h3>
-        <button onclick="uploadFilesToS3()" id="uploadButton">Upload</button>
+      <div class="flex justify-between items-center mb-2.5">
+        <h3 class="mb-3 text-base font-semibold text-gray-900">${currentFolder ? `${currentFolder} - Files` : `All Files`}</h3>
+        <button class="px-3 py-2 bg-blue-600 text-white border-none rounded-lg cursor-pointer ml-2.5 font-semibold transition hover:bg-blue-700 hover:shadow-lg hover:scale-102" onclick="uploadFilesToS3()" id="uploadButton">Upload</button>
         </div>
-        <ul id="fileList">
-            <li>
-                <span>No files found</span>
+        <ul id="fileList" class="list-none p-0 m-0">
+            <li class="p-3 my-2 rounded-lg bg-gray-50 border border-gray-200">
+                <span class="text-gray-500">No files found</span>
             </li>
         </ul>
         `;
@@ -479,7 +293,7 @@ export default class S3BrowserCommand extends Command {
   }
 
   async updateFolder() {
-    const dlg = document.querySelector(".s3-dialog");
+    const dlg = document.querySelector('[role="dialog"]');
     if (dlg) dlg.setAttribute("aria-busy", "true");
     const contents = await this.getFolderNames(bucketName);
     const folderListElement = document.getElementById("folderList");
@@ -489,14 +303,14 @@ export default class S3BrowserCommand extends Command {
     if (contents.length) {
       folderListHTML = contents
         .map(
-          (folder, i ) => `
-            <li class="folder-item ${folder === currentFolder ? 'selected' : ''}">
-                    <div class="folder-info">
-                        <div class="icon" onclick="updateContent('${folder}', ${i})">${folderIcon}</div>
-                        <span class="folderName">${folder}</span>
+          (folder, i) => `
+            <li class="js-folder-item p-3 my-2 rounded-lg bg-gray-50 border border-gray-200 transition flex items-center justify-between hover:bg-blue-50 hover:border-blue-300 hover:-translate-y-px hover:shadow-md cursor-pointer ${folder === currentFolder ? 'bg-orange-100/30 scale-102' : ''}">
+                    <div class="flex items-center gap-2.5 cursor-pointer" onclick="updateContent('${folder}', ${i})">
+                        <div class="w-10 h-[22px] inline-flex shrink-0 items-center justify-center text-gray-500">${folderIcon}</div>
+                        <span class="text-base font-bold text-gray-700">${folder}</span>
                     </div>
-                    <div class="folder-actions">
-                        <button class="delete-btn" onclick="event.stopPropagation(); deleteFolder(event, '${folder}')">Delete</button>
+                    <div class="flex justify-end">
+                        <button class="px-3 py-2 bg-red-500 text-white border-none rounded-lg cursor-pointer ml-2.5 font-semibold transition hover:bg-red-600 hover:shadow-lg hover:scale-102" onclick="event.stopPropagation(); deleteFolder(event, '${folder}')">Delete</button>
                     </div>
                 </li>
         `
@@ -504,8 +318,8 @@ export default class S3BrowserCommand extends Command {
         .join("");
     } else {
       folderListHTML = `
-        <li>
-            <span>No folders found</span>
+        <li class="p-3 my-2 rounded-lg bg-gray-50 border border-gray-200">
+            <span class="text-gray-500">No folders found</span>
         </li>
     `;
     }
@@ -608,14 +422,14 @@ export default class S3BrowserCommand extends Command {
     const folderNameInput = document.getElementById("folderNameInput");
     const folderName = folderNameInput.value.trim();
     if (folderName.length) {
-      const dlg = document.querySelector(".s3-dialog");
+      const dlg = document.querySelector('[role="dialog"]');
       if (dlg) dlg.setAttribute("aria-busy", "true");
       await this.uploadFileToS3(folderName, "", true);
       currentFolder = folderName;
       const folderList = await this.getFolderNames(bucketName);
       const contents = await this.getFolderContents(bucketName, currentFolder);
       this.renderFileList(folderList, contents);
-      const ndlg = document.querySelector(".s3-dialog");
+      const ndlg = document.querySelector('[role="dialog"]');
       if (ndlg) ndlg.setAttribute("aria-busy", "false");
     } else {
       showWarning(
@@ -637,13 +451,13 @@ export default class S3BrowserCommand extends Command {
     fileInput.onchange = async (event) => {
       const files = Array.from(event.target.files);
       try {
-        const dlg = document.querySelector(".s3-dialog");
+        const dlg = document.querySelector('[role="dialog"]');
         if (dlg) dlg.setAttribute("aria-busy", "true");
         await Promise.all(
           files.map((file) => this.uploadFileToS3(currentFolder, file, false))
         );
         await this.updateContent(currentFolder);
-        const ndlg = document.querySelector(".s3-dialog");
+        const ndlg = document.querySelector('[role="dialog"]');
         if (ndlg) ndlg.setAttribute("aria-busy", "false");
         showWarning(
           this.editor,
@@ -653,7 +467,7 @@ export default class S3BrowserCommand extends Command {
           false
         );
       } catch (error) {
-        const ndlg = document.querySelector(".s3-dialog");
+        const ndlg = document.querySelector('[role="dialog"]');
         if (ndlg) ndlg.setAttribute("aria-busy", "false");
         showWarning(
           this.editor,
@@ -711,7 +525,7 @@ export default class S3BrowserCommand extends Command {
 
   async deleteFile(e, fileKey) {
     e.stopPropagation();
-    const dlg = document.querySelector(".s3-dialog");
+    const dlg = document.querySelector('[role="dialog"]');
     if (dlg) dlg.setAttribute("aria-busy", "true");
     const command = new DeleteObjectCommand({
       Bucket: bucketName,
@@ -732,13 +546,13 @@ export default class S3BrowserCommand extends Command {
         true
       );
     }
-    const ndlg = document.querySelector(".s3-dialog");
+    const ndlg = document.querySelector('[role="dialog"]');
     if (ndlg) ndlg.setAttribute("aria-busy", "false");
   }
 
   async deleteFolder(e, folderKey) {
     e.stopPropagation();
-    const dlg = document.querySelector(".s3-dialog");
+    const dlg = document.querySelector('[role="dialog"]');
     if (dlg) dlg.setAttribute("aria-busy", "true");
     const listCommand = new ListObjectsV2Command({
       Bucket: bucketName,
@@ -782,7 +596,7 @@ export default class S3BrowserCommand extends Command {
       );
       console.error("Error deleting the folder:", error);
     }
-    const ndlg = document.querySelector(".s3-dialog");
+    const ndlg = document.querySelector('[role="dialog"]');
     if (ndlg) ndlg.setAttribute("aria-busy", "false");
   }
 
@@ -791,7 +605,7 @@ export default class S3BrowserCommand extends Command {
     let iconUrl;
 
     if (["png", "jpg", "jpeg", "gif"].includes(fileExtension)) {
-      return `<img src="${file.imageUrl}" alt="${file.fileName}" class="file-image"/>`;
+      return `<img src="${file.imageUrl}" alt="${file.fileName}" class="max-w-[clamp(160px,35vw,260px)] max-h-[200px] rounded-lg"/>`;
     } else if (["mp3", "wav"].includes(fileExtension)) {
       iconUrl = audioIcon;
     } else if (["pdf"].includes(fileExtension)) {
@@ -802,7 +616,7 @@ export default class S3BrowserCommand extends Command {
       iconUrl = defaultIcon;
     }
 
-    return `<div class="icon">${iconUrl}</div>`;
+    return `<div class="w-10 h-[22px] inline-flex shrink-0 items-center justify-center">${iconUrl}</div>`;
   }
 
   async resetDialog() {
@@ -813,7 +627,7 @@ export default class S3BrowserCommand extends Command {
   }
 
   closeDialog() {
-    const dialog = document.querySelector(".s3-dialog");
+    const dialog = document.querySelector('[role="dialog"]');
     if (dialog) {
       dialog.remove();
     }
