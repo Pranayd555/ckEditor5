@@ -1,15 +1,94 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Generator: Adobe Illustrator 24.3.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
-<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
-	 viewBox="0 0 120 120" enable-background="new 0 0 120 120" xml:space="preserve">
-<path fill="#FBCF26" d="M75.375,50.286c1.519,0,2.751-1.231,2.751-2.75c0-1.519-1.232-2.75-2.751-2.75
-	c-1.519,0-2.751,1.231-2.751,2.75C72.624,49.055,73.856,50.286,75.375,50.286z M91.205,80.733c0,0.578-0.472,1.048-1.05,1.05H28.97
-	c-0.578-0.002-1.047-0.472-1.049-1.05V67.616L43.264,54.83l13.454,13.954l11.452-8.653l23.036,15.751V80.733z"/>
-<path fill="#1A2559" d="M90.155,34.298L28.97,34.3c-2.239,0-4.048,1.813-4.05,4.05v42.384c0.002,2.234,1.811,4.048,4.05,4.05h61.185
-	c2.237-0.002,4.048-1.812,4.051-4.05V38.349C94.203,36.11,92.393,34.3,90.155,34.298z M91.205,80.733c0,0.578-0.472,1.048-1.05,1.05
-	H28.97c-0.578-0.002-1.047-0.472-1.049-1.05V67.616L43.264,54.83l13.454,13.954l11.452-8.653l23.036,15.751V80.733z M91.205,72.246
-	L68.082,56.437l-11.05,8.349L43.487,50.74L27.921,63.713V38.349c0.002-0.58,0.471-1.05,1.049-1.052h61.185
-	c0.578,0.002,1.05,0.474,1.05,1.052V72.246z M75.376,41.786c-3.179,0-5.75,2.573-5.75,5.75c0,3.176,2.571,5.749,5.75,5.749
-	c3.176,0,5.749-2.573,5.749-5.749C81.125,44.359,78.552,41.786,75.376,41.786z M75.376,50.286c-1.52-0.003-2.748-1.23-2.752-2.75
-	c0.004-1.52,1.232-2.748,2.752-2.75c1.517,0.002,2.746,1.23,2.75,2.75C78.122,49.055,76.894,50.283,75.376,50.286z"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <style>
+    :root {
+      /* Light Mode Colors (Warm Amber/Gold) */
+      --folder-back-top: #FFCA28;
+      --folder-back-bot: #FFB300;
+      --folder-front-top: #FFE082;
+      --folder-front-bot: #FFCA28;
+      --paper-color: #F5F5F5;
+      --shadow-color: 0.2;
+      --stroke-color: rgba(0,0,0,0.05);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        /* Dark Mode Colors (Cool Blue/Cyan) */
+        --folder-back-top: #1E88E5;
+        --folder-back-bot: #1565C0;
+        --folder-front-top: #64B5F6;
+        --folder-front-bot: #2196F3;
+        --paper-color: #E0E0E0;
+        --shadow-color: 0.5;
+        --stroke-color: rgba(255,255,255,0.1);
+      }
+    }
+
+    .folder-back-shape { fill: url(#gradBack); stroke: var(--stroke-color); stroke-width: 2; }
+    .folder-front-shape { fill: url(#gradFront); filter: url(#dropShadow); stroke: var(--stroke-color); stroke-width: 1; }
+    .paper-sheet { fill: var(--paper-color); }
+  </style>
+  
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="gradBack" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="var(--folder-back-top)" />
+      <stop offset="100%" stop-color="var(--folder-back-bot)" />
+    </linearGradient>
+    
+    <linearGradient id="gradFront" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="var(--folder-front-top)" />
+      <stop offset="100%" stop-color="var(--folder-front-bot)" />
+    </linearGradient>
+
+    <!-- Soft Shadow for depth -->
+    <filter id="dropShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="8" />
+      <feOffset dx="0" dy="6" result="offsetblur" />
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="var(--shadow-color)" />
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Back Plate (The tab and rear body) -->
+  <path class="folder-back-shape" d="M 40,110 
+           L 200,110 
+           C 215,110 225,115 235,135 
+           L 245,155 
+           L 472,155 
+           C 494,155 502,163 502,185 
+           L 502,442 
+           C 502,464 484,482 462,482 
+           L 50,482 
+           C 28,482 10,464 10,442 
+           L 10,140 
+           C 10,118 28,110 40,110 Z" />
+
+  <!-- Paper Insert (Peeking out) -->
+  <rect class="paper-sheet" x="60" y="170" width="392" height="200" rx="4" ry="4" opacity="0.9" />
+  
+  <!-- Decorative lines on paper -->
+  <rect fill="rgba(0,0,0,0.1)" x="80" y="195" width="150" height="8" rx="2" />
+  <rect fill="rgba(0,0,0,0.1)" x="80" y="215" width="352" height="8" rx="2" />
+  <rect fill="rgba(0,0,0,0.1)" x="80" y="235" width="352" height="8" rx="2" />
+
+  <!-- Front Plate (The pocket) -->
+  <path class="folder-front-shape" d="M 10,442 
+           L 10,250 
+           C 10,228 28,220 50,220 
+           L 462,220 
+           C 484,220 502,228 502,250 
+           L 502,442 
+           C 502,464 484,482 462,482 
+           L 50,482 
+           C 28,482 10,464 10,442 Z" />
+
+  <!-- Subtle Highlight on top edge of front plate for definition -->
+  <path d="M 50,221 L 462,221" stroke="rgba(255,255,255,0.4)" stroke-width="2" fill="none" />
+
 </svg>

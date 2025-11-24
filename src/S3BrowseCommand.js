@@ -38,6 +38,20 @@ export default class S3BrowserCommand extends Command {
     window.deleteFile = this.deleteFile.bind(this);
     window.deleteFolder = this.deleteFolder.bind(this);
     window.getFileIcon = this.getFileIcon.bind(this);
+    window.toggleTheme = this.toggleTheme.bind(this);
+    this.isDarkMode = true; // Default to dark mode for "futuristic" feel
+  }
+
+  toggleTheme() {
+    this.isDarkMode = !this.isDarkMode;
+    const dialog = document.querySelector('[role="dialog"]');
+    if (dialog) {
+      if (this.isDarkMode) {
+        dialog.classList.add('dark');
+      } else {
+        dialog.classList.remove('dark');
+      }
+    }
   }
 
   async execute() {
@@ -62,20 +76,26 @@ export default class S3BrowserCommand extends Command {
   }
 
   showLoader() {
+    const themeClass = this.isDarkMode ? 'dark' : '';
     const dialogHTML = `
-    <div class="fixed inset-0 flex items-center justify-center z-[1000] bg-gray-900/55 backdrop-blur-sm" aria-busy="false" role="dialog">
-                <div class="relative bg-white w-[min(1000px,92vw)] max-h-[85vh] min-h-[60vh] rounded-xl shadow-2xl border border-gray-200 overflow-hidden flex items-center justify-center">
+    <div class="fixed inset-0 flex items-center justify-center z-[1000] bg-gray-900/60 backdrop-blur-md transition-all duration-300 ${themeClass}" aria-busy="false" role="dialog">
+        <div class="relative w-[min(1000px,92vw)] max-h-[85vh] min-h-[60vh] rounded-2xl shadow-2xl overflow-hidden flex items-center justify-center
+            bg-white/90 dark:bg-[#1c1917]/95 border border-white/20 dark:border-white/10 backdrop-blur-xl transition-colors duration-300">
             <div id="fileList" class="w-full h-full flex items-center justify-center">
-              <div class="flex flex-col items-center justify-center py-10 gap-2.5">
-                <div class="w-10 h-10 border-4 border-black/15 border-t-blue-500 rounded-full animate-spin"></div>
-                <span class="text-sm font-medium text-gray-700/85">Loading files...</span>
+              <div class="flex flex-col items-center justify-center py-10 gap-4">
+                <div class="relative">
+                    <div class="w-16 h-16 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin"></div>
+                    <div class="absolute inset-0 flex items-center justify-center">
+                        <div class="w-8 h-8 bg-blue-500/20 rounded-full blur-md animate-pulse"></div>
+                    </div>
+                </div>
+                <span class="text-base font-medium text-gray-600 dark:text-gray-300 tracking-wide animate-pulse">Loading files...</span>
               </div>
             </div>
-            </div>
-            </div>
-                    `
+        </div>
+    </div>
+    `
     this.closeDialog();
-    // this.addDialogStyles(); // Removed custom styles
     document.body.insertAdjacentHTML("beforeend", dialogHTML);
   }
 
@@ -124,19 +144,30 @@ export default class S3BrowserCommand extends Command {
   }
 
   renderFileList(folderList, files) {
+    const themeClass = this.isDarkMode ? 'dark' : '';
     let folderListHTML = [];
     let fileListHTML = [];
+
+    // Folder List Logic
     if (folderList.length) {
       folderListHTML = folderList
         .map(
           (folder, i) => `
-                <li class="js-folder-item p-3 my-2 rounded-lg bg-gray-50 border border-gray-200 transition flex items-center justify-between hover:bg-blue-50 hover:border-blue-300 hover:-translate-y-px hover:shadow-md cursor-pointer ${folder === currentFolder ? 'bg-orange-100/30 scale-102' : ''}">
-                    <div class="flex items-center gap-2.5 cursor-pointer" onclick="updateContent('${folder}', ${i})">
-                        <div class="w-10 h-[22px] inline-flex shrink-0 items-center justify-center text-gray-500">${folderIcon}</div>
-                        <span class="text-base font-bold text-gray-700">${folder}</span>
+                <li class="js-folder-item group p-3 my-2 rounded-xl border transition-all duration-200 flex items-center justify-between cursor-pointer
+                    ${folder === currentFolder
+              ? 'bg-blue-500/10 border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.15)] scale-[1.02]'
+              : 'bg-gray-50/50 dark:bg-white/5 border-gray-200 dark:border-white/10 hover:bg-blue-50 dark:hover:bg-white/10 hover:border-blue-300 dark:hover:border-white/20 hover:-translate-y-0.5 hover:shadow-lg'
+            }">
+                    <div class="flex items-center gap-3 cursor-pointer flex-1" onclick="updateContent('${folder}', ${i})">
+                        <div class="w-5 h-5 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 transition-colors group-hover:bg-blue-200 dark:group-hover:bg-blue-900/50">
+                            ${folderIcon}
+                        </div>
+                        <span class="text-base font-semibold text-gray-700 dark:text-gray-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">${folder}</span>
                     </div>
-                    <div class="flex justify-end">
-                        <button class="px-3 py-2 bg-red-500 text-white border-none rounded-lg cursor-pointer ml-2.5 font-semibold transition hover:bg-red-600 hover:shadow-lg hover:scale-102" onclick="event.stopPropagation(); deleteFolder(event, '${folder}')">Delete</button>
+                    <div class="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                        <button class="p-2 text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" onclick="event.stopPropagation(); deleteFolder(event, '${folder}')" title="Delete Folder">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                        </button>
                     </div>
                 </li>
             `
@@ -144,73 +175,133 @@ export default class S3BrowserCommand extends Command {
         .join("");
     } else {
       folderListHTML = `
-            <li class="p-3 my-2 rounded-lg bg-gray-50 border border-gray-200">
-                <span class="text-gray-500">No folders found</span>
+            <li class="p-8 text-center rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-700 text-gray-400 dark:text-gray-500">
+                <span class="block text-sm font-medium">No folders found</span>
             </li>
         `;
     }
 
+    // File List Logic
+    const isFileLimitReached = files.length >= 3;
+    let uploadButtonHTML;
+
+    if (!currentFolder) {
+      uploadButtonHTML = `<button class="px-4 py-2 bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 border-none rounded-lg cursor-not-allowed font-semibold flex items-center gap-2" disabled title="Create or select a folder to upload">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Upload
+           </button>`;
+    } else if (isFileLimitReached) {
+      uploadButtonHTML = `<span class="text-xs font-medium text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 px-3 py-1.5 rounded-full border border-amber-200 dark:border-amber-800">Limit Reached (Max 3)</span>`;
+    } else {
+      uploadButtonHTML = `<button class="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-none rounded-lg cursor-pointer font-semibold shadow-lg shadow-blue-500/30 transition-all hover:shadow-blue-500/50 hover:scale-105 active:scale-95 flex items-center gap-2" onclick="uploadFilesToS3()" id="uploadButton">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Upload
+           </button>`;
+    }
+
     if (files.length) {
       fileListHTML = `
-                <div class="flex justify-between items-center mb-2.5">
-                <h3 class="mb-3 text-base font-semibold text-gray-900">${currentFolder ? `${currentFolder} - Files` : `All Files`}</h3>
-                <button class="px-3 py-2 bg-blue-600 text-white border-none rounded-lg cursor-pointer ml-2.5 font-semibold transition hover:bg-blue-700 hover:shadow-lg hover:scale-102" onclick="uploadFilesToS3()" id="uploadButton">Upload</button>
+                <div class="flex justify-between items-center mb-4 sticky top-0 bg-white/95 dark:bg-[#1c1917]/95 backdrop-blur-sm z-10 py-2 border-b border-gray-100 dark:border-white/5">
+                    <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                        ${currentFolder ? `<span class="text-blue-500">/</span> ${currentFolder}` : `All Files`}
+                        <span class="text-xs font-normal text-gray-400 bg-gray-100 dark:bg-white/5 px-2 py-0.5 rounded-full">${files.length}/3</span>
+                    </h3>
+                    ${uploadButtonHTML}
                 </div>
-                    <ul id="fileList" class="list-none p-0 m-0">
-                        ${files
+                <ul id="fileList" class="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-4">
+                    ${files
           .map(
             (file) => `
-                            <li class="p-3 my-2 rounded-lg bg-gray-50 border border-gray-200 transition flex items-center justify-between hover:bg-blue-50 hover:border-blue-300 hover:-translate-y-px hover:shadow-md cursor-pointer">
-                                <div class="flex items-center gap-2.5 flex-1" data-file="${file.key}" onclick="selectFile('${file.Key
-              }')">
-                                    ${getFileIcon(file)}
-                                    <span class="font-semibold ml-2.5 text-gray-800 break-words whitespace-normal overflow-wrap-anywhere">${file.fileName
-              }</span>
-                                </div>
-                                <div class="flex gap-2">
-                                    <button class="px-3 py-2 bg-red-500 text-white border-none rounded-lg cursor-pointer ml-2.5 font-semibold transition hover:bg-red-600 hover:shadow-lg hover:scale-102" onclick="deleteFile(event, '${file.Key
-              }')">Delete</button>
-                                </div>
-                            </li>
-                        `
+                        <li class="group relative p-3 rounded-xl bg-gray-50/50 dark:bg-white/5 border border-gray-200 dark:border-white/10 transition-all duration-200 hover:bg-white dark:hover:bg-white/10 hover:border-blue-300 dark:hover:border-blue-500/50 hover:-translate-y-1 hover:shadow-xl hover:shadow-blue-500/10 cursor-pointer overflow-hidden" onclick="selectFile('${file.Key}')">
+                            <div class="aspect-video w-full rounded-lg bg-gray-200 dark:bg-black/20 overflow-hidden mb-3 flex items-center justify-center relative">
+                                ${getFileIcon(file)}
+                                <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 dark:group-hover:bg-white/5 transition-colors"></div>
+                            </div>
+                            <div class="flex items-start justify-between gap-2">
+                                <span class="font-medium text-sm text-gray-700 dark:text-gray-200 truncate flex-1" title="${file.fileName}">${file.fileName}</span>
+                                <button class="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all opacity-0 group-hover:opacity-100" onclick="deleteFile(event, '${file.Key}')" title="Delete File">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                                </button>
+                            </div>
+                        </li>
+                    `
           )
           .join("")}
-                    </ul>
+                </ul>
         `;
     } else {
       fileListHTML = ` 
-            <div class="flex justify-between items-center mb-2.5">
-            <h3 class="mb-3 text-base font-semibold text-gray-900">${currentFolder ? `${currentFolder} - Files` : `All Files`}</h3>
-            <button class="px-3 py-2 bg-blue-600 text-white border-none rounded-lg cursor-pointer ml-2.5 font-semibold transition hover:bg-blue-700 hover:shadow-lg hover:scale-102" onclick="uploadFilesToS3()" id="uploadButton">Upload</button>
+            <div class="flex justify-between items-center mb-4 sticky top-0 bg-white/95 dark:bg-[#1c1917]/95 backdrop-blur-sm z-10 py-2 border-b border-gray-100 dark:border-white/5">
+                <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">${currentFolder ? `<span class="text-blue-500">/</span> ${currentFolder}` : `All Files`}</h3>
+                ${uploadButtonHTML}
             </div>
-            <ul id="fileList" class="list-none p-0 m-0">
-                <li class="p-3 my-2 rounded-lg bg-gray-50 border border-gray-200">
-                    <span class="text-gray-500">No files found</span>
-                </li>
-            </ul>`;
+            <div class="flex flex-col items-center justify-center h-64 text-gray-400 dark:text-gray-600 border-2 border-dashed border-gray-200 dark:border-white/5 rounded-xl bg-gray-50/50 dark:bg-white/5">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="mb-4 opacity-50"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+                <span class="text-sm font-medium">No files uploaded yet</span>
+            </div>`;
     }
 
+    // Folder Creation Logic (Limit to 1 folder)
+    const showAddFolder = folderList.length < 1;
+    const addFolderHTML = showAddFolder ? `
+        <div class="mb-6">
+            <div class="relative flex items-center">
+                <input type="text" class="w-full pl-4 pr-12 py-3 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl outline-none text-gray-700 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-600 transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" id="folderNameInput" placeholder="New folder name..." />
+                <button class="absolute right-2 p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors shadow-lg shadow-blue-500/30" id="addFolderButton" onclick="addFolder()" title="Create Folder">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                </button>
+            </div>
+        </div>
+    ` : `
+        <div class="mb-6 p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 rounded-xl flex items-center gap-3 text-blue-700 dark:text-blue-300">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span class="text-sm font-medium">Folder limit reached (Max 1)</span>
+        </div>
+    `;
+
     const dialogHTML = `
-            <div class="fixed inset-0 flex items-center justify-center z-[1000] bg-gray-900/55 backdrop-blur-sm" aria-busy="false" role="dialog">
-                <div class="relative bg-white w-[min(1000px,92vw)] max-h-[85vh] min-h-[60vh] rounded-xl shadow-2xl border border-gray-200 overflow-hidden">
-                    <div class="absolute inset-0 flex items-center justify-center gap-3 bg-white/65 opacity-0 pointer-events-none transition-opacity duration-200 group-aria-[busy=true]:opacity-100 group-aria-[busy=true]:pointer-events-auto z-50">
-                        <div class="w-7 h-7 rounded-full border-[3px] border-blue-300 border-t-blue-600 animate-spin"></div>
-                        <div class="font-semibold text-gray-900">Loading</div>
+            <div class="fixed inset-0 flex items-center justify-center z-[1000] bg-gray-900/60 backdrop-blur-md transition-all duration-300 ${themeClass}" aria-busy="false" role="dialog">
+                <div class="relative w-[min(1100px,94vw)] max-h-[85vh] min-h-[60vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col
+                    bg-white/95 dark:bg-[#1c1917]/95 border border-white/20 dark:border-white/10 backdrop-blur-xl transition-colors duration-300">
+                    
+                    <!-- Loading Overlay -->
+                    <div class="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-white/80 dark:bg-[#1c1917]/80 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300 group-aria-[busy=true]:opacity-100 group-aria-[busy=true]:pointer-events-auto z-50">
+                        <div class="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin"></div>
+                        <div class="font-semibold text-gray-800 dark:text-gray-200 tracking-wide">Processing...</div>
                     </div>
-                    <span class="absolute right-3.5 top-2.5 cursor-pointer text-xl text-gray-500 hover:text-red-500 hover:scale-110 transition-transform z-10" onclick="closeDialog()">&times;</span>
-                    <h2 class="text-xl font-bold pt-4 px-5 text-gray-900">File Manager</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-[300px_1fr] gap-4 p-5">
-                        <div class="bg-white border border-gray-200 rounded-xl p-4 overflow-y-auto max-h-[400px]">
-                            <input type="text" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-400/35" id="folderNameInput" placeholder="Enter folder name" />
-                            <div class="flex justify-end items-center mt-1.5">
-                            <button class="px-3 py-2 bg-blue-600 text-white border-none rounded-lg cursor-pointer ml-2.5 font-semibold transition hover:bg-blue-700 hover:shadow-lg hover:scale-102 mt-[5px]" id="addFolderButton" onclick="addFolder()">Add Folder</button>
+
+                    <!-- Header -->
+                    <div class="flex items-center justify-between px-6 py-5 border-b border-gray-100 dark:border-white/5">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/30">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
                             </div>
-                            <h3 class="mb-3 text-base font-semibold text-gray-900">Folders</h3>
-                            <ul id="folderList" class="list-none p-0 m-0">
+                            <h2 class="text-xl font-bold text-gray-800 dark:text-white tracking-tight">File Manager</h2>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <button onclick="toggleTheme()" class="p-2.5 rounded-xl text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors" title="Toggle Theme">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hidden dark:block"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="block dark:hidden"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                            </button>
+                            <button class="p-2.5 rounded-xl text-gray-500 dark:text-gray-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-colors" onclick="closeDialog()" title="Close">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Body -->
+                    <div class="flex-1 grid grid-cols-1 md:grid-cols-[320px_1fr] gap-0 overflow-hidden">
+                        <!-- Sidebar (Folders) -->
+                        <div class="bg-gray-50/50 dark:bg-black/20 border-r border-gray-100 dark:border-white/5 p-6 overflow-y-auto">
+                            ${addFolderHTML}
+                            <h3 class="mb-4 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Your Folders</h3>
+                            <ul id="folderList" class="space-y-2">
                                 ${folderListHTML}
                             </ul>
                         </div>
-                        <div class="s3-file-section bg-white border border-gray-200 rounded-xl p-4 overflow-y-auto max-h-[400px]">
+                        
+                        <!-- Main Content (Files) -->
+                        <div class="s3-file-section p-6 overflow-y-auto bg-white dark:bg-transparent">
                                 ${fileListHTML}
                         </div>
                     </div>
@@ -219,73 +310,86 @@ export default class S3BrowserCommand extends Command {
 
     this.closeDialog();
     document.body.insertAdjacentHTML("beforeend", dialogHTML);
-    // this.addDialogStyles(); // Removed
   }
 
-  // addDialogStyles removed
-
-
   async updateContent(folderName, index = null) {
-    const dlg = document.querySelector('[role="dialog"]'); // Updated selector
+    const dlg = document.querySelector('[role="dialog"]');
     if (dlg) dlg.setAttribute("aria-busy", "true");
     const contents = await this.getFolderContents(bucketName, folderName);
     const fileListElement = document.querySelector(".s3-file-section");
     fileListElement.innerHTML = "";
     if (index !== null) {
       const folderListElement = document.getElementsByClassName("js-folder-item");
-      // Remove active classes from all items (or specifically the previously selected one if we tracked it, but iterating is fine for small lists)
-      // Actually, we can just find the one with the active class.
-      // But let's just loop or find the one with the specific class.
       for (let item of folderListElement) {
-        if (item.classList.contains('bg-orange-100/30')) {
-          item.classList.remove('bg-orange-100/30', 'scale-102');
-        }
+        // Reset classes
+        item.classList.remove('bg-blue-500/10', 'border-blue-500/50', 'shadow-[0_0_15px_rgba(59,130,246,0.15)]', 'scale-[1.02]');
+        item.classList.add('bg-gray-50/50', 'dark:bg-white/5', 'border-gray-200', 'dark:border-white/10');
       }
-      // Add active classes to the new one
       if (folderListElement[index]) {
-        folderListElement[index].classList.add('bg-orange-100/30', 'scale-102');
+        // Add active classes
+        folderListElement[index].classList.remove('bg-gray-50/50', 'dark:bg-white/5', 'border-gray-200', 'dark:border-white/10');
+        folderListElement[index].classList.add('bg-blue-500/10', 'border-blue-500/50', 'shadow-[0_0_15px_rgba(59,130,246,0.15)]', 'scale-[1.02]');
       }
     }
+
     let fileListHTML = ``;
+    const isFileLimitReached = contents.length >= 3;
+    let uploadButtonHTML;
+
+    if (!currentFolder) {
+      uploadButtonHTML = `<button class="px-4 py-2 bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 border-none rounded-lg cursor-not-allowed font-semibold flex items-center gap-2" disabled title="Create or select a folder to upload">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Upload
+           </button>`;
+    } else if (isFileLimitReached) {
+      uploadButtonHTML = `<span class="text-xs font-medium text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 px-3 py-1.5 rounded-full border border-amber-200 dark:border-amber-800">Limit Reached (Max 3)</span>`;
+    } else {
+      uploadButtonHTML = `<button class="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-none rounded-lg cursor-pointer font-semibold shadow-lg shadow-blue-500/30 transition-all hover:shadow-blue-500/50 hover:scale-105 active:scale-95 flex items-center gap-2" onclick="uploadFilesToS3()" id="uploadButton">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Upload
+           </button>`;
+    }
+
     if (contents.length) {
       fileListHTML = `
-      <div class="flex justify-between items-center mb-2.5">
-        <h3 class="mb-3 text-base font-semibold text-gray-900">${currentFolder ? `${currentFolder} - Files` : `All Files`}</h3>
-        <button class="px-3 py-2 bg-blue-600 text-white border-none rounded-lg cursor-pointer ml-2.5 font-semibold transition hover:bg-blue-700 hover:shadow-lg hover:scale-102" onclick="uploadFilesToS3()" id="uploadButton">Upload</button>
-        </div>
-                    <ul id="fileList" class="list-none p-0 m-0">
-                        ${contents
+                <div class="flex justify-between items-center mb-4 sticky top-0 bg-white/95 dark:bg-[#1c1917]/95 backdrop-blur-sm z-10 py-2 border-b border-gray-100 dark:border-white/5">
+                    <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                        ${currentFolder ? `<span class="text-blue-500">/</span> ${currentFolder}` : `All Files`}
+                        <span class="text-xs font-normal text-gray-400 bg-gray-100 dark:bg-white/5 px-2 py-0.5 rounded-full">${contents.length}/3</span>
+                    </h3>
+                    ${uploadButtonHTML}
+                </div>
+                <ul id="fileList" class="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-4">
+                    ${contents
           .map(
             (file) => `
-                            <li class="p-3 my-2 rounded-lg bg-gray-50 border border-gray-200 transition flex items-center justify-between hover:bg-blue-50 hover:border-blue-300 hover:-translate-y-px hover:shadow-md cursor-pointer" data-file="${file.Key}" onclick="selectFile('${file.Key
-              }')">
-                                <div class="flex items-center gap-2.5 flex-1">
-                                    ${getFileIcon(file)}
-                                    <span class="font-semibold ml-2.5 text-gray-800 break-words whitespace-normal overflow-wrap-anywhere">${file.fileName
-              }</span>
-                                </div>
-                                <div class="flex gap-2">
-                                    <button class="px-3 py-2 bg-red-500 text-white border-none rounded-lg cursor-pointer ml-2.5 font-semibold transition hover:bg-red-600 hover:shadow-lg hover:scale-102" onclick="deleteFile(event, '${file.Key
-              }')">Delete</button>
-                                </div>
-                            </li>
-                        `
+                        <li class="group relative p-3 rounded-xl bg-gray-50/50 dark:bg-white/5 border border-gray-200 dark:border-white/10 transition-all duration-200 hover:bg-white dark:hover:bg-white/10 hover:border-blue-300 dark:hover:border-blue-500/50 hover:-translate-y-1 hover:shadow-xl hover:shadow-blue-500/10 cursor-pointer overflow-hidden" onclick="selectFile('${file.Key}')">
+                            <div class="aspect-video w-full rounded-lg bg-gray-200 dark:bg-black/20 overflow-hidden mb-3 flex items-center justify-center relative">
+                                ${getFileIcon(file)}
+                                <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 dark:group-hover:bg-white/5 transition-colors"></div>
+                            </div>
+                            <div class="flex items-start justify-between gap-2">
+                                <span class="font-medium text-sm text-gray-700 dark:text-gray-200 truncate flex-1" title="${file.fileName}">${file.fileName}</span>
+                                <button class="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all opacity-0 group-hover:opacity-100" onclick="deleteFile(event, '${file.Key}')" title="Delete File">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                                </button>
+                            </div>
+                        </li>
+                    `
           )
           .join("")}
-                    </ul>
+                </ul>
         `;
     } else {
-      fileListHTML = `
-      <div class="flex justify-between items-center mb-2.5">
-        <h3 class="mb-3 text-base font-semibold text-gray-900">${currentFolder ? `${currentFolder} - Files` : `All Files`}</h3>
-        <button class="px-3 py-2 bg-blue-600 text-white border-none rounded-lg cursor-pointer ml-2.5 font-semibold transition hover:bg-blue-700 hover:shadow-lg hover:scale-102" onclick="uploadFilesToS3()" id="uploadButton">Upload</button>
-        </div>
-        <ul id="fileList" class="list-none p-0 m-0">
-            <li class="p-3 my-2 rounded-lg bg-gray-50 border border-gray-200">
-                <span class="text-gray-500">No files found</span>
-            </li>
-        </ul>
-        `;
+      fileListHTML = ` 
+            <div class="flex justify-between items-center mb-4 sticky top-0 bg-white/95 dark:bg-[#1c1917]/95 backdrop-blur-sm z-10 py-2 border-b border-gray-100 dark:border-white/5">
+                <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">${currentFolder ? `<span class="text-blue-500">/</span> ${currentFolder}` : `All Files`}</h3>
+                ${uploadButtonHTML}
+            </div>
+            <div class="flex flex-col items-center justify-center h-64 text-gray-400 dark:text-gray-600 border-2 border-dashed border-gray-200 dark:border-white/5 rounded-xl bg-gray-50/50 dark:bg-white/5">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="mb-4 opacity-50"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+                <span class="text-sm font-medium">No files uploaded yet</span>
+            </div>`;
     }
 
     fileListElement.innerHTML = fileListHTML;
@@ -304,13 +408,21 @@ export default class S3BrowserCommand extends Command {
       folderListHTML = contents
         .map(
           (folder, i) => `
-            <li class="js-folder-item p-3 my-2 rounded-lg bg-gray-50 border border-gray-200 transition flex items-center justify-between hover:bg-blue-50 hover:border-blue-300 hover:-translate-y-px hover:shadow-md cursor-pointer ${folder === currentFolder ? 'bg-orange-100/30 scale-102' : ''}">
-                    <div class="flex items-center gap-2.5 cursor-pointer" onclick="updateContent('${folder}', ${i})">
-                        <div class="w-10 h-[22px] inline-flex shrink-0 items-center justify-center text-gray-500">${folderIcon}</div>
-                        <span class="text-base font-bold text-gray-700">${folder}</span>
+            <li class="js-folder-item group p-3 my-2 rounded-xl border transition-all duration-200 flex items-center justify-between cursor-pointer
+                    ${folder === currentFolder
+              ? 'bg-blue-500/10 border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.15)] scale-[1.02]'
+              : 'bg-gray-50/50 dark:bg-white/5 border-gray-200 dark:border-white/10 hover:bg-blue-50 dark:hover:bg-white/10 hover:border-blue-300 dark:hover:border-white/20 hover:-translate-y-0.5 hover:shadow-lg'
+            }">
+                    <div class="flex items-center gap-3 cursor-pointer flex-1" onclick="updateContent('${folder}', ${i})">
+                        <div class="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 transition-colors group-hover:bg-blue-200 dark:group-hover:bg-blue-900/50">
+                            ${folderIcon}
+                        </div>
+                        <span class="text-base font-semibold text-gray-700 dark:text-gray-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">${folder}</span>
                     </div>
-                    <div class="flex justify-end">
-                        <button class="px-3 py-2 bg-red-500 text-white border-none rounded-lg cursor-pointer ml-2.5 font-semibold transition hover:bg-red-600 hover:shadow-lg hover:scale-102" onclick="event.stopPropagation(); deleteFolder(event, '${folder}')">Delete</button>
+                    <div class="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                        <button class="p-2 text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" onclick="event.stopPropagation(); deleteFolder(event, '${folder}')" title="Delete Folder">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                        </button>
                     </div>
                 </li>
         `
@@ -318,8 +430,8 @@ export default class S3BrowserCommand extends Command {
         .join("");
     } else {
       folderListHTML = `
-        <li class="p-3 my-2 rounded-lg bg-gray-50 border border-gray-200">
-            <span class="text-gray-500">No folders found</span>
+        <li class="p-8 text-center rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-700 text-gray-400 dark:text-gray-500">
+            <span class="block text-sm font-medium">No folders found</span>
         </li>
     `;
     }
@@ -445,11 +557,25 @@ export default class S3BrowserCommand extends Command {
   uploadFilesToS3() {
     const fileInput = document.createElement("input");
     fileInput.type = "file";
-    fileInput.accept = ".mp3,.png,.pdf,.doc,.docx,.jpg,.jpeg";
+    fileInput.accept = ".png,.jpg,.jpeg";
     fileInput.multiple = true;
 
     fileInput.onchange = async (event) => {
-      const files = Array.from(event.target.files);
+      const files = Array.from(event.target.files).filter(file =>
+        ['image/png', 'image/jpeg', 'image/jpg'].includes(file.type)
+      );
+
+      if (files.length === 0) {
+        showWarning(
+          this.editor,
+          "Invalid File",
+          true,
+          "Please select only PNG or JPG images.",
+          false
+        );
+        return;
+      }
+
       try {
         const dlg = document.querySelector('[role="dialog"]');
         if (dlg) dlg.setAttribute("aria-busy", "true");
@@ -605,7 +731,7 @@ export default class S3BrowserCommand extends Command {
     let iconUrl;
 
     if (["png", "jpg", "jpeg", "gif"].includes(fileExtension)) {
-      return `<img src="${file.imageUrl}" alt="${file.fileName}" class="max-w-[clamp(160px,35vw,260px)] max-h-[200px] rounded-lg"/>`;
+      return `<img src="${file.imageUrl}" alt="${file.fileName}" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"/>`;
     } else if (["mp3", "wav"].includes(fileExtension)) {
       iconUrl = audioIcon;
     } else if (["pdf"].includes(fileExtension)) {
