@@ -54,17 +54,17 @@ module.exports = {
 
     plugins: [
         new webpack.DefinePlugin({
-      'process.env.S3_BUCKET_NAME': JSON.stringify(process.env.S3_BUCKET_NAME || 'pranay-poc-bucket'),
-      'process.env.AWS_REGION': JSON.stringify(process.env.AWS_REGION || 'eu-north-1'),
-      'process.env.AWS_ACCESS_KEY_ID': JSON.stringify(process.env.AWS_ACCESS_KEY_ID || ''),
-      'process.env.AWS_SECRET_ACCESS_KEY': JSON.stringify(process.env.AWS_SECRET_ACCESS_KEY || ''),
-      'process.env.R2_ACCOUNT_ID': JSON.stringify(process.env.R2_ACCOUNT_ID || ''),
-      'process.env.R2_API': JSON.stringify(process.env.R2_API || ''),
-      'process.env.R2_BUCKET_NAME': JSON.stringify(process.env.R2_BUCKET_NAME || ''),
-      'process.env.R2_TOKEN_VALUE': JSON.stringify(process.env.R2_TOKEN_VALUE || ''),
-      'process.env.R2_ACCESS_KEY_ID': JSON.stringify(process.env.R2_ACCESS_KEY_ID || ''),
-      'process.env.R2_SECRECT_ACCESS_KEY': JSON.stringify(process.env.R2_SECRECT_ACCESS_KEY || ''),
-    }),
+            'process.env.S3_BUCKET_NAME': JSON.stringify(process.env.S3_BUCKET_NAME || 'pranay-poc-bucket'),
+            'process.env.AWS_REGION': JSON.stringify(process.env.AWS_REGION || 'eu-north-1'),
+            'process.env.AWS_ACCESS_KEY_ID': JSON.stringify(process.env.AWS_ACCESS_KEY_ID || ''),
+            'process.env.AWS_SECRET_ACCESS_KEY': JSON.stringify(process.env.AWS_SECRET_ACCESS_KEY || ''),
+            'process.env.R2_ACCOUNT_ID': JSON.stringify(process.env.R2_ACCOUNT_ID || ''),
+            'process.env.R2_API': JSON.stringify(process.env.R2_API || ''),
+            'process.env.R2_BUCKET_NAME': JSON.stringify(process.env.R2_BUCKET_NAME || ''),
+            'process.env.R2_TOKEN_VALUE': JSON.stringify(process.env.R2_TOKEN_VALUE || ''),
+            'process.env.R2_ACCESS_KEY_ID': JSON.stringify(process.env.R2_ACCESS_KEY_ID || ''),
+            'process.env.R2_SECRECT_ACCESS_KEY': JSON.stringify(process.env.R2_SECRECT_ACCESS_KEY || ''),
+        }),
         new MiniCssExtractPlugin({
             filename: 'ckeditor.css'
         }),
@@ -79,7 +79,7 @@ module.exports = {
             },
             {
                 test: /\.css$/i,
-                use: [MiniCssExtractPlugin.loader, 'css-loader']
+                use: [MiniCssExtractPlugin.loader, 'css-loader', 'postcss-loader']
             },
             {
                 test: /\.svg$/,
