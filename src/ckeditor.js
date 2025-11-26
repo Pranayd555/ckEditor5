@@ -238,7 +238,8 @@ export default class CKEditor5WithFileManager {
 			language: 'en',
 			...config
 		}).then(editor => {
-			console.log(editor.commands)
+			console.log(editor.commands);
+			return editor;
 		})
 	}
 

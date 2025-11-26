@@ -21,6 +21,8 @@ const bucketName =
 let currentFolder = "";
 
 export default class S3BrowserCommand extends Command {
+  filesLength = 0;
+  isLoading = false;
   constructor(editor, s3Client) {
     super(editor);
     this.s3Client = s3Client;
@@ -39,7 +41,7 @@ export default class S3BrowserCommand extends Command {
     window.deleteFolder = this.deleteFolder.bind(this);
     window.getFileIcon = this.getFileIcon.bind(this);
     window.toggleTheme = this.toggleTheme.bind(this);
-    this.isDarkMode = true; // Default to dark mode for "futuristic" feel
+    this.isDarkMode = false; // Default to dark mode for "futuristic" feel
   }
 
   toggleTheme() {
@@ -75,7 +77,45 @@ export default class S3BrowserCommand extends Command {
     }
   }
 
+  setLoading(show = true) {
+    if (this.isLoading === show) return; // Prevent duplicate calls
+    this.isLoading = show;
+
+    const existingOverlay = document.getElementById('s3-loading-overlay');
+
+    if (show) {
+      // Remove existing overlay if any
+      if (existingOverlay) existingOverlay.remove();
+
+      const dialog = document.querySelector('[role="dialog"]');
+      if (dialog) {
+        dialog.setAttribute('aria-busy', 'true');
+        // Add loading overlay to existing dialog
+        const overlay = document.createElement('div');
+        overlay.id = 's3-loading-overlay';
+        overlay.className = 'absolute inset-0 flex flex-col items-center justify-center gap-4 bg-white/80 dark:bg-[#1c1917]/80 backdrop-blur-sm z-50';
+        overlay.innerHTML = `
+          <div class="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin"></div>
+          <div class="font-semibold text-gray-800 dark:text-gray-200 tracking-wide">Processing...</div>
+        `;
+        dialog.querySelector('.relative').appendChild(overlay);
+      }
+    } else {
+      // Hide loading overlay
+      if (existingOverlay) {
+        existingOverlay.remove();
+      }
+      const dialog = document.querySelector('[role="dialog"]');
+      if (dialog) {
+        dialog.setAttribute('aria-busy', 'false');
+      }
+    }
+  }
+
   showLoader() {
+    if (this.isLoading) return; // Prevent showing loader if already loading
+    this.isLoading = true;
+
     const themeClass = this.isDarkMode ? 'dark' : '';
     const dialogHTML = `
     <div class="fixed inset-0 flex items-center justify-center z-[1000] bg-gray-900/60 backdrop-blur-md transition-all duration-300 ${themeClass}" aria-busy="false" role="dialog">
@@ -183,6 +223,7 @@ export default class S3BrowserCommand extends Command {
 
     // File List Logic
     const isFileLimitReached = files.length >= 3;
+    this.filesLength = files.length;
     let uploadButtonHTML;
 
     if (!currentFolder) {
@@ -242,7 +283,7 @@ export default class S3BrowserCommand extends Command {
     }
 
     // Folder Creation Logic (Limit to 1 folder)
-    const showAddFolder = folderList.length < 1;
+    const showAddFolder = folderList.length < 2;
     const addFolderHTML = showAddFolder ? `
         <div class="mb-6">
             <div class="relative flex items-center">
@@ -255,7 +296,7 @@ export default class S3BrowserCommand extends Command {
     ` : `
         <div class="mb-6 p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 rounded-xl flex items-center gap-3 text-blue-700 dark:text-blue-300">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            <span class="text-sm font-medium">Folder limit reached (Max 1)</span>
+            <span class="text-sm font-medium">Folder limit reached (Max 2)</span>
         </div>
     `;
 
@@ -292,7 +333,7 @@ export default class S3BrowserCommand extends Command {
                     <!-- Body -->
                     <div class="flex-1 grid grid-cols-1 md:grid-cols-[320px_1fr] gap-0 overflow-hidden">
                         <!-- Sidebar (Folders) -->
-                        <div class="bg-gray-50/50 dark:bg-black/20 border-r border-gray-100 dark:border-white/5 p-6 overflow-y-auto">
+                        <div class="bg-gray-50/50 dark:bg-black/20 border-r border-gray-100 dark:border-white/5 px-6 pt-6 pb-2 overflow-y-auto">
                             ${addFolderHTML}
                             <h3 class="mb-4 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Your Folders</h3>
                             <ul id="folderList" class="space-y-2">
@@ -310,6 +351,7 @@ export default class S3BrowserCommand extends Command {
 
     this.closeDialog();
     document.body.insertAdjacentHTML("beforeend", dialogHTML);
+    this.isLoading = false; // Reset loading state
   }
 
   async updateContent(folderName, index = null) {
@@ -334,6 +376,7 @@ export default class S3BrowserCommand extends Command {
 
     let fileListHTML = ``;
     const isFileLimitReached = contents.length >= 3;
+    this.filesLength = contents.length;
     let uploadButtonHTML;
 
     if (!currentFolder) {
@@ -531,19 +574,11 @@ export default class S3BrowserCommand extends Command {
   }
 
   async addFolder() {
-    const folderNameInput = document.getElementById("folderNameInput");
-    const folderName = folderNameInput.value.trim();
-    if (folderName.length) {
-      const dlg = document.querySelector('[role="dialog"]');
-      if (dlg) dlg.setAttribute("aria-busy", "true");
-      await this.uploadFileToS3(folderName, "", true);
-      currentFolder = folderName;
-      const folderList = await this.getFolderNames(bucketName);
-      const contents = await this.getFolderContents(bucketName, currentFolder);
-      this.renderFileList(folderList, contents);
-      const ndlg = document.querySelector('[role="dialog"]');
-      if (ndlg) ndlg.setAttribute("aria-busy", "false");
-    } else {
+    // Get input value BEFORE showing loader
+    const folderNameInput = document?.getElementById("folderNameInput");
+    const folderName = folderNameInput?.value?.trim();
+
+    if (!folderName || folderName.length === 0) {
       showWarning(
         this.editor,
         "Add Folder Failed",
@@ -551,10 +586,33 @@ export default class S3BrowserCommand extends Command {
         `Error Adding Folder: please add a folder name`,
         false
       );
+      return;
+    }
+
+    if (this.isLoading) return; // Prevent multiple calls
+
+    try {
+      this.setLoading(true);
+      await this.uploadFileToS3(folderName, "", true);
+      currentFolder = folderName;
+      const folderList = await this.getFolderNames(bucketName);
+      const contents = await this.getFolderContents(bucketName, currentFolder);
+      this.renderFileList(folderList, contents);
+    } catch (error) {
+      console.error('Error adding folder:', error);
+      showWarning(
+        this.editor,
+        "Add Folder Failed",
+        true,
+        `Error Adding Folder: ${error.message}`,
+        false
+      );
+      this.setLoading(false);
     }
   }
 
   uploadFilesToS3() {
+
     const fileInput = document.createElement("input");
     fileInput.type = "file";
     fileInput.accept = ".png,.jpg,.jpeg";
@@ -576,15 +634,22 @@ export default class S3BrowserCommand extends Command {
         return;
       }
 
+      if (this.isLoading) return; // Prevent multiple uploads
+
       try {
-        const dlg = document.querySelector('[role="dialog"]');
-        if (dlg) dlg.setAttribute("aria-busy", "true");
-        await Promise.all(
-          files.map((file) => this.uploadFileToS3(currentFolder, file, false))
-        );
+        this.setLoading(true);
+        if (this.filesLength + files.length > 3) {
+          const canUpload = 3 - this.filesLength;
+          await Promise.all(
+            files.slice(0, canUpload).map((file) => this.uploadFileToS3(currentFolder, file, false))
+          );
+        } else {
+          await Promise.all(
+            files.map((file) => this.uploadFileToS3(currentFolder, file, false))
+          );
+        }
         await this.updateContent(currentFolder);
-        const ndlg = document.querySelector('[role="dialog"]');
-        if (ndlg) ndlg.setAttribute("aria-busy", "false");
+        this.setLoading(false);
         showWarning(
           this.editor,
           "Success",
@@ -593,8 +658,7 @@ export default class S3BrowserCommand extends Command {
           false
         );
       } catch (error) {
-        const ndlg = document.querySelector('[role="dialog"]');
-        if (ndlg) ndlg.setAttribute("aria-busy", "false");
+        this.setLoading(false);
         showWarning(
           this.editor,
           "Upload Failed",
@@ -651,18 +715,22 @@ export default class S3BrowserCommand extends Command {
 
   async deleteFile(e, fileKey) {
     e.stopPropagation();
-    const dlg = document.querySelector('[role="dialog"]');
-    if (dlg) dlg.setAttribute("aria-busy", "true");
-    const command = new DeleteObjectCommand({
-      Bucket: bucketName,
-      Key: fileKey,
-    });
+
+    if (this.isLoading) return; // Prevent multiple deletes
 
     try {
+      this.setLoading(true);
+      const command = new DeleteObjectCommand({
+        Bucket: bucketName,
+        Key: fileKey,
+      });
+
       await this.s3Client.send(command);
       await this.updateContent(currentFolder);
+      this.setLoading(false);
       console.log(`File deleted successfully: ${fileKey}`);
     } catch (error) {
+      this.setLoading(false);
       console.error("Error deleting the file:", error);
       showWarning(
         this.editor,
@@ -672,20 +740,20 @@ export default class S3BrowserCommand extends Command {
         true
       );
     }
-    const ndlg = document.querySelector('[role="dialog"]');
-    if (ndlg) ndlg.setAttribute("aria-busy", "false");
   }
 
   async deleteFolder(e, folderKey) {
     e.stopPropagation();
-    const dlg = document.querySelector('[role="dialog"]');
-    if (dlg) dlg.setAttribute("aria-busy", "true");
-    const listCommand = new ListObjectsV2Command({
-      Bucket: bucketName,
-      Prefix: `${folderKey}/`,
-    });
+
+    if (this.isLoading) return; // Prevent multiple deletes
 
     try {
+      this.setLoading(true);
+      const listCommand = new ListObjectsV2Command({
+        Bucket: bucketName,
+        Prefix: `${folderKey}/`,
+      });
+
       const response = await this.s3Client.send(listCommand);
       const objectsToDelete = response.Contents.map((object) => ({
         Key: object.Key,
@@ -703,16 +771,18 @@ export default class S3BrowserCommand extends Command {
         await this.resetDialog();
         console.log(`Folder deleted successfully: ${folderKey}`);
       } else {
+        this.setLoading(false);
         showWarning(
           this.editor,
           "Error",
           true,
-          `Failed to delete folder: ${error.message}`,
+          `No objects found in this folder.`,
           true
         );
         console.log("No objects found in this folder.");
       }
     } catch (error) {
+      this.setLoading(false);
       showWarning(
         this.editor,
         "Error",
@@ -722,8 +792,6 @@ export default class S3BrowserCommand extends Command {
       );
       console.error("Error deleting the folder:", error);
     }
-    const ndlg = document.querySelector('[role="dialog"]');
-    if (ndlg) ndlg.setAttribute("aria-busy", "false");
   }
 
   getFileIcon(file) {
