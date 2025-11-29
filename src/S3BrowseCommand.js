@@ -27,6 +27,14 @@ export default class S3BrowserCommand extends Command {
     super(editor);
     this.s3Client = s3Client;
 
+    // Cache system for reducing API calls
+    this.cache = {
+      folders: null,
+      folderContents: new Map(), // folderName -> { data, timestamp }
+      lastFetch: null,
+      cacheDuration: 60000 // 1 minute cache
+    };
+
     this.listenTo(this.editor.model.document, "change", () => this.refresh());
     window.selectFile = this.selectFile.bind(this);
     window.closeDialog = this.closeDialog.bind(this);
@@ -35,7 +43,6 @@ export default class S3BrowserCommand extends Command {
     window.uploadFileToS3 = this.uploadFileToS3.bind(this);
     window.addFolder = this.addFolder.bind(this);
     window.updateFolder = this.updateFolder.bind(this);
-    window.selectFileFlmngr = this.selectFileFlmngr.bind(this);
     window.resetDialog = this.resetDialog.bind(this);
     window.deleteFile = this.deleteFile.bind(this);
     window.deleteFolder = this.deleteFolder.bind(this);
@@ -139,7 +146,13 @@ export default class S3BrowserCommand extends Command {
     document.body.insertAdjacentHTML("beforeend", dialogHTML);
   }
 
-  async getFolderNames(bucketName) {
+  async getFolderNames(bucketName, useCache = true) {
+    // Check cache first
+    if (useCache && this.cache.folders &&
+      Date.now() - this.cache.lastFetch < this.cache.cacheDuration) {
+      return this.cache.folders;
+    }
+
     const command = new ListObjectsV2Command({
       Bucket: bucketName,
       Delimiter: "/",
@@ -150,6 +163,11 @@ export default class S3BrowserCommand extends Command {
       const folderNames = (response.CommonPrefixes || []).map((prefix) =>
         prefix.Prefix.replace("/", "")
       );
+
+      // Update cache
+      this.cache.folders = folderNames;
+      this.cache.lastFetch = Date.now();
+
       return folderNames;
     } catch (error) {
       console.error("Error fetching folder names:", error);
@@ -157,7 +175,16 @@ export default class S3BrowserCommand extends Command {
     }
   }
 
-  async getFolderContents(bucketName, folderName) {
+  async getFolderContents(bucketName, folderName, useCache = true) {
+    // Check cache first
+    if (useCache && this.cache.folderContents.has(folderName)) {
+      const cached = this.cache.folderContents.get(folderName);
+      if (Date.now() - cached.timestamp < this.cache.cacheDuration) {
+        currentFolder = folderName;
+        return cached.data;
+      }
+    }
+
     const command = new ListObjectsV2Command({
       Bucket: bucketName,
       Prefix: folderName + "/",
@@ -167,20 +194,50 @@ export default class S3BrowserCommand extends Command {
 
     try {
       const { Contents } = await this.s3Client.send(command);
-      const updatedContents = await Promise.all(
-        Contents.map(async (a) => {
-          const parts = a.Key.split("/");
-          a.fileName = parts[parts.length - 1];
-          if (a.fileName.length)
-            a.imageUrl = await this.selectFileFlmngr(a.Key);
-          return a.fileName.length !== 0 ? a : null;
+
+      // Process files WITHOUT downloading them (major optimization)
+      const updatedContents = Contents
+        .map((item) => {
+          const parts = item.Key.split("/");
+          const fileName = parts[parts.length - 1];
+
+          if (!fileName.length) return null;
+
+          return {
+            ...item,
+            fileName,
+            // Mark if needs preview, but don't download yet
+            needsPreview: this.isImageFile(fileName)
+          };
         })
-      );
-      return updatedContents.filter((a) => a !== null);
+        .filter(item => item !== null);
+
+      // Cache the results
+      this.cache.folderContents.set(folderName, {
+        data: updatedContents,
+        timestamp: Date.now()
+      });
+
+      return updatedContents;
     } catch (error) {
       console.error("Error fetching folder contents:", error);
       return [];
     }
+  }
+
+  isImageFile(fileName) {
+    const ext = fileName.split(".").pop().toLowerCase();
+    return ["png", "jpg", "jpeg", "gif"].includes(ext);
+  }
+
+  async getImagePreviewUrl(fileKey) {
+    const command = new GetObjectCommand({
+      Bucket: bucketName,
+      Key: fileKey,
+    });
+
+    // Use signed URL instead of downloading - much more efficient
+    return await getSignedUrl(this.s3Client, command, { expiresIn: 3600 });
   }
 
   renderFileList(folderList, files) {
@@ -283,7 +340,7 @@ export default class S3BrowserCommand extends Command {
     }
 
     // Folder Creation Logic (Limit to 1 folder)
-    const showAddFolder = folderList.length < 2;
+    const showAddFolder = folderList.length < 1;
     const addFolderHTML = showAddFolder ? `
         <div class="mb-6">
             <div class="relative flex items-center">
@@ -294,10 +351,10 @@ export default class S3BrowserCommand extends Command {
             </div>
         </div>
     ` : `
-        <div class="mb-6 p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 rounded-xl flex items-center gap-3 text-blue-700 dark:text-blue-300">
+        <!-- <div class="mb-6 p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 rounded-xl flex items-center gap-3 text-blue-700 dark:text-blue-300">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
             <span class="text-sm font-medium">Folder limit reached (Max 2)</span>
-        </div>
+        </div> -->
     `;
 
     const dialogHTML = `
@@ -320,10 +377,10 @@ export default class S3BrowserCommand extends Command {
                             <h2 class="text-xl font-bold text-gray-800 dark:text-white tracking-tight">File Manager</h2>
                         </div>
                         <div class="flex items-center gap-3">
-                            <button onclick="toggleTheme()" class="p-2.5 rounded-xl text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors" title="Toggle Theme">
+                            <!-- <button onclick="toggleTheme()" class="p-2.5 rounded-xl text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors" title="Toggle Theme">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hidden dark:block"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
                                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="block dark:hidden"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-                            </button>
+                            </button> -->
                             <button class="p-2.5 rounded-xl text-gray-500 dark:text-gray-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-colors" onclick="closeDialog()" title="Close">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                             </button>
@@ -352,12 +409,17 @@ export default class S3BrowserCommand extends Command {
     this.closeDialog();
     document.body.insertAdjacentHTML("beforeend", dialogHTML);
     this.isLoading = false; // Reset loading state
+
+    // Load images lazily after render
+    setTimeout(() => this.loadLazyImages(), 100);
   }
 
   async updateContent(folderName, index = null) {
     const dlg = document.querySelector('[role="dialog"]');
     if (dlg) dlg.setAttribute("aria-busy", "true");
-    const contents = await this.getFolderContents(bucketName, folderName);
+
+    // Use cached data if available
+    const contents = await this.getFolderContents(bucketName, folderName, true);
     const fileListElement = document.querySelector(".s3-file-section");
     fileListElement.innerHTML = "";
     if (index !== null) {
@@ -436,6 +498,10 @@ export default class S3BrowserCommand extends Command {
     }
 
     fileListElement.innerHTML = fileListHTML;
+
+    // Load images lazily
+    setTimeout(() => this.loadLazyImages(), 100);
+
     if (dlg) dlg.setAttribute("aria-busy", "false");
   }
 
@@ -483,93 +549,41 @@ export default class S3BrowserCommand extends Command {
     if (dlg) dlg.setAttribute("aria-busy", "false");
   }
 
-  async selectFileFlmngr(fileKey) {
-    try {
-      const command = new GetObjectCommand({
-        Bucket: bucketName,
-        Key: fileKey,
-      });
-      const response = await this.s3Client.send(command);
-      const { Body, ContentType } = response;
-      const blob = await this.readStreamToBlob(Body);
-      const base64 = await this.convertBlobToBase64(blob);
-      return base64;
-    } catch (error) {
-      console.error("Error downloading the file **:", error);
-      showWarning(
-        this.editor,
-        "Error",
-        true,
-        "Unable to download the file.",
-        false
-      );
-    }
-  }
 
   async selectFile(fileKey) {
     console.log(`Selected file: ${fileKey}`);
 
     try {
-      const command = new GetObjectCommand({
-        Bucket: bucketName,
-        Key: fileKey,
-      });
-
-      const signedUrl = await getSignedUrl(this.s3Client, command);
-      console.log("Signed URL:", signedUrl);
-
-      const response = await this.s3Client.send(command);
-      const { Body, ContentType } = response;
-
       const fileExtension = fileKey.split(".").pop().toLowerCase();
-      let blob = await this.readStreamToBlob(Body);
 
       if (["png", "jpg", "jpeg", "gif"].includes(fileExtension)) {
-        const fileContents = await this.convertBlobToBase64(blob);
-        this.editor.execute("insertImage", { source: fileContents });
+        // For images, use signed URL (already loaded in preview)
+        const signedUrl = await this.getImagePreviewUrl(fileKey);
+
+        this.editor.execute("insertImage", { source: signedUrl });
       } else if (["mp3", "wav"].includes(fileExtension)) {
-        const audioType = ContentType; // e.g., "audio/mpeg"
+        const signedUrl = await this.getImagePreviewUrl(fileKey);
 
-        // Create audio element using writer
         this.editor.model.change((writer) => {
-          const insertPosition =
-            this.editor.model.document.selection.getFirstPosition();
-          console.log("insert position", insertPosition);
-
-          // Create the audio element
+          const insertPosition = this.editor.model.document.selection.getFirstPosition();
           const audioElement = writer.createElement("audio", {
             src: signedUrl,
-            type: audioType,
+            type: `audio/${fileExtension === 'mp3' ? 'mpeg' : 'wav'}`,
           });
           writer.insert(audioElement, insertPosition);
         });
-      } else if (["pdf"].includes(fileExtension)) {
-        console.log("pdf**", Body, ContentType);
-        // Handle PDF insertion logic
-      } else if (["doc", "docx"].includes(fileExtension)) {
-        console.log("doc**", Body, ContentType);
-        // Handle DOC/DOCX insertion logic
+      } else if (["pdf", "doc", "docx"].includes(fileExtension)) {
+        console.log(`${fileExtension} file selected`, fileKey);
+        // Handle document insertion logic
       } else {
-        console.log("Unsupported file type", Body, ContentType);
-        showWarning(
-          this.editor,
-          "Error",
-          true,
-          "Unsupported file type.",
-          false
-        );
+        showWarning(this.editor, "Error", true, "Unsupported file type.", false);
         return;
       }
     } catch (error) {
-      console.error("Error downloading the file:", error);
-      showWarning(
-        this.editor,
-        "Error",
-        true,
-        "Unable to download the file.",
-        false
-      );
+      console.error("Error selecting file:", error);
+      showWarning(this.editor, "Error", true, "Unable to select the file.", false);
     }
+
     this.closeDialog();
   }
 
@@ -595,8 +609,12 @@ export default class S3BrowserCommand extends Command {
       this.setLoading(true);
       await this.uploadFileToS3(folderName, "", true);
       currentFolder = folderName;
-      const folderList = await this.getFolderNames(bucketName);
-      const contents = await this.getFolderContents(bucketName, currentFolder);
+
+      // Invalidate cache for fresh data
+      this.invalidateCache();
+
+      const folderList = await this.getFolderNames(bucketName, false);
+      const contents = await this.getFolderContents(bucketName, currentFolder, false);
       this.renderFileList(folderList, contents);
     } catch (error) {
       console.error('Error adding folder:', error);
@@ -609,6 +627,49 @@ export default class S3BrowserCommand extends Command {
       );
       this.setLoading(false);
     }
+  }
+
+  validateFileSize(file, maxSizeMB = 2) {
+    const maxBytes = maxSizeMB * 1024 * 1024;
+    return file.size <= maxBytes;
+  }
+
+  async compressImage(file, maxSizeMB = 2) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          // Calculate scaling to reduce file size
+          const scaleFactor = Math.sqrt(maxSizeMB / (file.size / (1024 * 1024)));
+          if (scaleFactor < 1) {
+            width *= scaleFactor;
+            height *= scaleFactor;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob((blob) => {
+            if (blob) {
+              resolve(new File([blob], file.name, { type: file.type }));
+            } else {
+              reject(new Error('Failed to compress image'));
+            }
+          }, file.type, 0.85); // 85% quality
+        };
+        img.onerror = () => reject(new Error('Failed to load image'));
+        img.src = e.target.result;
+      };
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsDataURL(file);
+    });
   }
 
   uploadFilesToS3() {
@@ -638,16 +699,64 @@ export default class S3BrowserCommand extends Command {
 
       try {
         this.setLoading(true);
-        if (this.filesLength + files.length > 3) {
-          const canUpload = 3 - this.filesLength;
-          await Promise.all(
-            files.slice(0, canUpload).map((file) => this.uploadFileToS3(currentFolder, file, false))
-          );
-        } else {
-          await Promise.all(
-            files.map((file) => this.uploadFileToS3(currentFolder, file, false))
-          );
+
+        // Process files with size validation and compression
+        const processedFiles = [];
+        for (const file of files) {
+          if (!this.validateFileSize(file, 2)) {
+            // Ask user if they want to compress
+            const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+            const compress = confirm(
+              `${file.name} is ${fileSizeMB}MB (max 2MB).\n\n` +
+              `Would you like to compress it before uploading?`
+            );
+
+            if (compress) {
+              try {
+                const compressed = await this.compressImage(file, 2);
+                const compressedSizeMB = (compressed.size / (1024 * 1024)).toFixed(2);
+                console.log(`Compressed ${file.name} from ${fileSizeMB}MB to ${compressedSizeMB}MB`);
+                processedFiles.push(compressed);
+              } catch (error) {
+                console.error('Compression failed:', error);
+                showWarning(
+                  this.editor,
+                  "Compression Failed",
+                  true,
+                  `Failed to compress ${file.name}: ${error.message}`,
+                  false
+                );
+              }
+            } else {
+              showWarning(
+                this.editor,
+                "File Too Large",
+                true,
+                `${file.name} exceeds 2MB limit and was skipped.`,
+                false
+              );
+            }
+          } else {
+            processedFiles.push(file);
+          }
         }
+
+        if (processedFiles.length === 0) {
+          this.setLoading(false);
+          return;
+        }
+
+        // Upload processed files
+        const canUpload = Math.min(3 - this.filesLength, processedFiles.length);
+        await Promise.all(
+          processedFiles.slice(0, canUpload).map((file) =>
+            this.uploadFileToS3(currentFolder, file, false)
+          )
+        );
+
+        // Invalidate cache to show new files immediately
+        this.invalidateCache(currentFolder);
+
         await this.updateContent(currentFolder);
         this.setLoading(false);
         showWarning(
@@ -698,10 +807,10 @@ export default class S3BrowserCommand extends Command {
     }
   }
 
-  async readStreamToBlob(readableStream) {
+  async readStreamToBlob(readableStream, contentType) {
     const response = new Response(readableStream);
-    const blob = await response.blob();
-    return blob;
+    const arrayBuffer = await response.arrayBuffer();
+    return new Blob([arrayBuffer], { type: contentType });
   }
 
   async convertBlobToBase64(blob) {
@@ -726,7 +835,11 @@ export default class S3BrowserCommand extends Command {
       });
 
       await this.s3Client.send(command);
-      await this.updateContent(currentFolder);
+
+      // Invalidate cache for this folder
+      this.invalidateCache(currentFolder);
+
+      await this.updateContent(currentFolder, null);
       this.setLoading(false);
       console.log(`File deleted successfully: ${fileKey}`);
     } catch (error) {
@@ -768,6 +881,10 @@ export default class S3BrowserCommand extends Command {
         });
 
         await this.s3Client.send(deleteCommand);
+
+        // Invalidate all cache since folder structure changed
+        this.invalidateCache();
+
         await this.resetDialog();
         console.log(`Folder deleted successfully: ${folderKey}`);
       } else {
@@ -799,7 +916,13 @@ export default class S3BrowserCommand extends Command {
     let iconUrl;
 
     if (["png", "jpg", "jpeg", "gif"].includes(fileExtension)) {
-      return `<img src="${file.imageUrl}" alt="${file.fileName}" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"/>`;
+      // Use lazy loading with data attribute - image will be loaded after render
+      return `<img 
+        data-file-key="${file.Key}" 
+        class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110 lazy-s3-image" 
+        alt="${file.fileName}" 
+        src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect fill='%23e5e7eb' width='100' height='100'/%3E%3C/svg%3E"
+      />`;
     } else if (["mp3", "wav"].includes(fileExtension)) {
       iconUrl = audioIcon;
     } else if (["pdf"].includes(fileExtension)) {
@@ -811,6 +934,34 @@ export default class S3BrowserCommand extends Command {
     }
 
     return `<div class="w-10 h-[22px] inline-flex shrink-0 items-center justify-center">${iconUrl}</div>`;
+  }
+
+  async loadLazyImages() {
+    const lazyImages = document.querySelectorAll('.lazy-s3-image');
+
+    for (const img of lazyImages) {
+      const fileKey = img.getAttribute('data-file-key');
+      if (fileKey) {
+        try {
+          const signedUrl = await this.getImagePreviewUrl(fileKey);
+          img.src = signedUrl;
+        } catch (error) {
+          console.error('Error loading image preview:', error);
+        }
+      }
+    }
+  }
+
+  invalidateCache(folderName = null) {
+    if (folderName) {
+      // Invalidate specific folder cache
+      this.cache.folderContents.delete(folderName);
+    } else {
+      // Invalidate all cache
+      this.cache.folders = null;
+      this.cache.folderContents.clear();
+      this.cache.lastFetch = null;
+    }
   }
 
   async resetDialog() {
