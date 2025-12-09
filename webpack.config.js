@@ -68,6 +68,9 @@ module.exports = {
         new MiniCssExtractPlugin({
             filename: 'ckeditor.css'
         }),
+        new webpack.BannerPlugin({
+            banner: '/* eslint-disable */', // build issue fix
+        })
     ],
 
     module: {
