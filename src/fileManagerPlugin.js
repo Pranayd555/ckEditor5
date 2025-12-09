@@ -1,9 +1,12 @@
-import { Plugin, Notification, ButtonView } from 'ckeditor5';
+import { Plugin, Notification, ButtonView, FileRepository } from 'ckeditor5';
 import { S3Client } from '@aws-sdk/client-s3';
 import iconUpload from './assets/icons/upload.svg';
 import iconS3 from './assets/icons/file-manager.svg'; // Replace with your own icon
 import S3BrowserCommand from './S3BrowseCommand';
+import S3UploadAdapter from './S3UploadAdapter';
 
+
+const bucketName = process.env.R2_BUCKET_NAME || process.env.S3_BUCKET_NAME || 'pranay-poc-bucket';
 
 export default class AmazonS3Plugin extends Plugin {
 
@@ -12,7 +15,7 @@ export default class AmazonS3Plugin extends Plugin {
     }
 
     static get requires() {
-        return [Notification];
+        return [Notification, FileRepository];
     }
 
     init() {
@@ -31,11 +34,16 @@ export default class AmazonS3Plugin extends Plugin {
             region: "auto",
             endpoint: process.env.R2_API || 'https://<ACCOUNT_ID>.r2.cloudflarestorage.com',
             signatureVersion: 'v4',
-            credentials:{
+            credentials: {
                 accessKeyId: process.env.R2_ACCESS_KEY_ID || '',
                 secretAccessKey: process.env.R2_SECRECT_ACCESS_KEY || ''
             },
         });
+
+        // Register upload adapter for insertImage functionality
+        this.editor.plugins.get('FileRepository').createUploadAdapter = (loader) => {
+            return new S3UploadAdapter(loader, this.s3Client, bucketName);
+        };
 
         // Add commands
         this.editor.commands.add('s3Browse', new S3BrowserCommand(this.editor, this.s3Client));
@@ -47,20 +55,20 @@ export default class AmazonS3Plugin extends Plugin {
             view: (modelElement, { writer }) => {
                 const audioSourceUrl = modelElement.getAttribute('src');
                 const audioType = modelElement.getAttribute('type');
-                const audioElement = writer.createContainerElement( 'figure', { class: 'audio' }, [
-                     	writer.createContainerElement( 'audio', { controls: true }, [
-                            writer.createEmptyElement('source', {
-                                src: audioSourceUrl,
-                                type: audioType
-                            })
-                        ] ),
-                     	writer.createContainerElement( 'figcaption' )
-                     ] );
-        
+                const audioElement = writer.createContainerElement('figure', { class: 'audio' }, [
+                    writer.createContainerElement('audio', { controls: true }, [
+                        writer.createEmptyElement('source', {
+                            src: audioSourceUrl,
+                            type: audioType
+                        })
+                    ]),
+                    writer.createContainerElement('figcaption')
+                ]);
+
                 return audioElement; // Return the figure container with the audio tag
             }
         });
-        
+
 
 
         // Add UI buttons
